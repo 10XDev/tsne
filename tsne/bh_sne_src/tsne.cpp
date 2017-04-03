@@ -58,6 +58,8 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 	           int max_iter, int stop_lying_iter, int mom_switch_iter
                ) {
 
+    fprintf(stderr, "Note: timing numbers will not be accurate when OpenMP is being used for parallelism\n");
+
     // Set random seed
     if (skip_random_init != true) {
       if(rand_seed >= 0) {
@@ -228,8 +230,13 @@ void TSNE::computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp
     double* pos_f = (double*) calloc(N * D, sizeof(double));
     double* neg_f = (double*) calloc(N * D, sizeof(double));
     if(pos_f == NULL || neg_f == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
+
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q);
+
+    #pragma omp parallel for schedule(guided) reduction(+:sum_Q)
+    for(int n = 0; n < N; n++){
+        sum_Q += tree->computeNonEdgeForces(n, theta, neg_f + n * D);
+    }
 
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
@@ -334,7 +341,9 @@ double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val
     SPTree<NDIMS>* tree = new SPTree<NDIMS>(Y, N);
     double* buff = (double*) calloc(D, sizeof(double));
     double sum_Q = .0;
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, buff, &sum_Q);
+    for(int n = 0; n < N; n++){
+        sum_Q += tree->computeNonEdgeForces(n, theta, buff);
+    }
 
     // Loop over all edges to compute t-SNE error
     int ind1, ind2;
@@ -443,8 +452,6 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
     unsigned int* row_P = *_row_P;
     unsigned int* col_P = *_col_P;
     double* val_P = *_val_P;
-    double* cur_P = (double*) malloc((N - 1) * sizeof(double));
-    if(cur_P == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
     row_P[0] = 0;
     for(int n = 0; n < N; n++) row_P[n + 1] = row_P[n] + (unsigned int) K;
 
@@ -452,19 +459,25 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
     VpTree<DataPoint, euclidean_distance>* tree = new VpTree<DataPoint, euclidean_distance>();
     vector<DataPoint> obj_X(N, DataPoint(D, -1, X));
     for(int n = 0; n < N; n++) obj_X[n] = DataPoint(D, n, X + n * D);
+    
+    fprintf(stderr,"Building tree...\n");
     tree->create(obj_X);
 
     // Loop over all points to find nearest neighbors
-    fprintf(stderr,"Building tree...\n");
-    vector<DataPoint> indices;
-    vector<double> distances;
+    fprintf(stderr,"Searching for nearest neighbors...\n");
+    
+    int points_completed = 0;
+
+    #pragma omp parallel for schedule(guided)
     for(int n = 0; n < N; n++) {
 
-        if(n % 10000 == 0) fprintf(stderr," - point %d of %d\n", n, N);
+        vector<DataPoint> indices;
+        vector<double> distances;
+        vector<double> cur_P(K);
+        indices.reserve(K+1);
+        distances.reserve(K+1);
 
         // Find nearest neighbors
-        indices.clear();
-        distances.clear();
         tree->search(obj_X[n], K + 1, &indices, &distances);
 
         // Initialize some variables for binary search
@@ -515,16 +528,19 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
         }
 
         // Row-normalize current row of P and store in matrix
-        for(unsigned int m = 0; m < K; m++) cur_P[m] /= sum_P;
         for(unsigned int m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
-            val_P[row_P[n] + m] = cur_P[m];
+            val_P[row_P[n] + m] = cur_P[m] / sum_P;
         }
+
+        #pragma omp atomic
+        ++points_completed;
+
+        if(points_completed % 10000 == 0) fprintf(stderr," - point %d of %d\n", points_completed, N);
     }
 
     // Clean up memory
     obj_X.clear();
-    free(cur_P);
     delete tree;
 }
 
