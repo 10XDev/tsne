@@ -2,25 +2,28 @@
 #CFLAGS = -march=haswell -ffast-math -O3 -Rpass=loop-vectorize -Rpass-missed=loop-vectorize  -Rpass-analysis=loop-vectorize
 #CFLAGS = -march=haswell -ffast-math -O3
 
-CXX = g++
-CFLAGS = -ffast-math -O3
+CXX ?= g++
+CFLAGS += -std=c++11 -ffast-math -O3 -flto
+
+CFLAGS += -ffunction-sections
+LDFLAGS += -Wl,--gc-sections
 
 all: bh_tsne bh_tsne_3d
 
 bh_tsne: tsne.o sptree.o
-	$(CXX) $(CFLAGS) tsne.o sptree.o -o bh_tsne
+	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
 bh_tsne_3d: tsne_3d.o sptree.o
-	$(CXX) $(CFLAGS) tsne_3d.o sptree.o -o bh_tsne_3d
+	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
 sptree.o: sptree.cpp sptree.h
-	$(CXX) $(CFLAGS) -c sptree.cpp
+	$(CXX) $(CFLAGS) -c $< -o $@
 
 tsne.o: tsne.cpp tsne.h sptree.h vptree.h
-	$(CXX) $(CFLAGS) -c tsne.cpp
+	$(CXX) $(CFLAGS) -c $< -o $@
 
 tsne_3d.o: tsne.cpp tsne.h sptree.h vptree.h
-	$(CXX) $(CFLAGS) -DTSNE3D -c tsne.cpp
+	$(CXX) $(CFLAGS) -DTSNE3D -c $< -o $@
 
 clean:
 	rm -Rf *.o bh_tsne bh_tsne_3d
