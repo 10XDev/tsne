@@ -217,31 +217,29 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta)
+void TSNE::computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, const double* Y, int N, int D, double* dC, double theta)
 {
+    assert(D == NDIMS);
 
     // Construct space-partitioning tree on current map
-    SPTree<NDIMS>* tree = new SPTree<NDIMS>(Y, N);
+    SPTree<NDIMS> tree(Y, N);
 
     // Compute all terms required for t-SNE gradient
     double sum_Q = .0;
-    double* pos_f = (double*) calloc(N * D, sizeof(double));
-    double* neg_f = (double*) calloc(N * D, sizeof(double));
-    if(pos_f == NULL || neg_f == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
-    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q);
+    auto len = N * NDIMS;
+    vector<double> pos_f(2 * len);
+    double* neg_f = pos_f.data() + len;
+    tree.computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f.data());
+    for(int n = 0; n < N; n++) tree.computeNonEdgeForces(n, theta, neg_f + n * NDIMS, &sum_Q);
 
     // Compute final t-SNE gradient
-    for(int i = 0; i < N * D; i++) {
+    for(int i = 0; i < len; i++) {
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
     }
-    free(pos_f);
-    free(neg_f);
-    delete tree;
 }
 
 // Compute gradient of the t-SNE cost function (exact)
-void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) {
+void TSNE::computeExactGradient(double* P, const double* Y, int N, int D, double* dC) {
 
 	// Make sure the current gradient contains zeros
 	for(int i = 0; i < N * D; i++) dC[i] = 0.0;
@@ -291,7 +289,7 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) 
 
 
 // Evaluate t-SNE cost function (exactly)
-double TSNE::evaluateError(double* P, double* Y, int N, int D) {
+double TSNE::evaluateError(double* P, const double* Y, int N, int D) {
 
     // Compute the squared Euclidean distance matrix
     double* DD = (double*) malloc(N * N * sizeof(double));
@@ -327,40 +325,37 @@ double TSNE::evaluateError(double* P, double* Y, int N, int D) {
 }
 
 // Evaluate t-SNE cost function (approximately)
-double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta)
+double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, const double* Y, int N, int D, double theta)
 {
+    assert(D == NDIMS);
 
     // Get estimate of normalization term
-    SPTree<NDIMS>* tree = new SPTree<NDIMS>(Y, N);
-    double* buff = (double*) calloc(D, sizeof(double));
+    SPTree<NDIMS> tree(Y, N);
+    double buff[NDIMS];
     double sum_Q = .0;
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, buff, &sum_Q);
+    for(int n = 0; n < N; n++) tree.computeNonEdgeForces(n, theta, buff, &sum_Q);
 
     // Loop over all edges to compute t-SNE error
     int ind1, ind2;
     double C = .0, Q;
     for(int n = 0; n < N; n++) {
-        ind1 = n * D;
+        ind1 = n * NDIMS;
         for(int i = row_P[n]; i < row_P[n + 1]; i++) {
             Q = .0;
-            ind2 = col_P[i] * D;
-            for(int d = 0; d < D; d++) buff[d]  = Y[ind1 + d];
-            for(int d = 0; d < D; d++) buff[d] -= Y[ind2 + d];
-            for(int d = 0; d < D; d++) Q += buff[d] * buff[d];
+            ind2 = col_P[i] * NDIMS;
+            for(int d = 0; d < NDIMS; d++) buff[d]  = Y[ind1 + d];
+            for(int d = 0; d < NDIMS; d++) buff[d] -= Y[ind2 + d];
+            for(int d = 0; d < NDIMS; d++) Q += buff[d] * buff[d];
             Q = (1.0 / (1.0 + Q)) / sum_Q;
             C += val_P[i] * log((val_P[i] + FLT_MIN) / (Q + FLT_MIN));
         }
     }
-
-    // Clean up memory
-    free(buff);
-    delete tree;
     return C;
 }
 
 
 // Compute input similarities with a fixed perplexity
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity) {
+void TSNE::computeGaussianPerplexity(const double* X, int N, int D, double* P, double perplexity) {
 
 	// Compute the squared Euclidean distance matrix
 	double* DD = (double*) malloc(N * N * sizeof(double));
@@ -618,7 +613,7 @@ void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double
 }
 
 // Compute squared Euclidean distance matrix
-void TSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
+void TSNE::computeSquaredEuclideanDistance(const double* X, int N, int D, double* DD) {
     const double* XnD = X;
     for(int n = 0; n < N; ++n, XnD += D) {
         const double* XmD = XnD + D;

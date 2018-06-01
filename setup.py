@@ -35,8 +35,8 @@ if sys.platform == 'darwin':
     ext_modules = [Extension(name='bh_sne',
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                    include_dirs=[numpy.get_include(), 'tsne/bh_sne_src/'],
-                   extra_compile_args=extra_compile_args + ['-ffast-math', '-O3'],
-                   extra_link_args=['-Wl,-framework', '-Wl,Accelerate', '-lcblas'],
+                   extra_compile_args=extra_compile_args + ['-ffast-math', '-O3', '-std=c++11'],
+                   extra_link_args=['-Wl,-framework', '-Wl,Accelerate'],
                    language='c++')]
 
 else:
@@ -45,17 +45,17 @@ else:
     ext_modules = [Extension(name='bh_sne',
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                    include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
-                   library_dirs=['/usr/local/lib', '/usr/lib64/atlas'],
-                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math'],
-                   extra_link_args=['-Wl,-Bstatic', '-lcblas', '-Wl,-Bdynamic'],
+                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-std=c++11',
+                                       '-ffunction-sections', '-flto'],
+                   extra_link_args=['-Wl,--gc-sections', '-flto'],
                    language='c++'),
 
                    Extension(name='bh_sne_3d',
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne_3d.pyx'],
                    include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
-                   library_dirs=['/usr/local/lib', '/usr/lib64/atlas'],
-                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-DTSNE3D'],
-                   extra_link_args=['-Wl,-Bstatic', '-lcblas', '-Wl,-Bdynamic'],
+                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-DTSNE3D',
+                                       '-std=c++11', '-ffunction-sections', '-flto'],
+                   extra_link_args=['-Wl,--gc-sections', '-flto'],
                    language='c++')]
 
 ext_modules = cythonize(ext_modules)
