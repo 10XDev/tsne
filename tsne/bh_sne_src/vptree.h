@@ -33,17 +33,15 @@
 
 /* This code was adopted with minor modifications from Steve Hanov's great tutorial at http://stevehanov.ca/blog/index.php?id=130 */
 
-#include <stdlib.h>
-#include <algorithm>
-#include <vector>
-#include <stdio.h>
-#include <queue>
-#include <limits>
-#include <cmath>
-
-
 #ifndef VPTREE_H
 #define VPTREE_H
+
+#include <algorithm>  // for reverse, nth_element
+#include <cfloat>     // for DBL_MAX
+#include <cmath>      // for sqrt
+#include <cstdlib>    // for malloc, free, rand, RAND_MAX
+#include <queue>      // for priority_queue
+#include <vector>     // for vector
 
 class DataPoint
 {
@@ -55,7 +53,7 @@ public:
     DataPoint() {
         _D = 1;
         _ind = -1;
-        _x = NULL;
+        _x = nullptr;
     }
     DataPoint(int D, int ind, double* x) {
         _D = D;
@@ -71,10 +69,10 @@ public:
             for(int d = 0; d < _D; d++) _x[d] = other.x(d);
         }
     }
-    ~DataPoint() { if(_x != NULL) free(_x); }
+    ~DataPoint() { if(_x != nullptr) free(_x); }
     DataPoint& operator= (const DataPoint& other) {         // asignment should free old object
         if(this != &other) {
-            if(_x != NULL) free(_x);
+            if(_x != nullptr) free(_x);
             _D = other.dimensionality();
             _ind = other.index();
             _x = (double*) malloc(_D * sizeof(double));
@@ -193,7 +191,7 @@ private:
     Node* buildFromPoints( int lower, int upper )
     {
         if (upper == lower) {     // indicates that we're done here!
-            return NULL;
+            return nullptr;
         }
         
         // Lower index is center of current node
@@ -229,7 +227,7 @@ private:
     // Helper function that searches the tree    
     void search(Node* node, const T& target, int k, std::priority_queue<HeapItem>& heap)
     {
-        if(node == NULL) return;     // indicates that we're done here
+        if(node == nullptr) return;     // indicates that we're done here
         
         // Compute distance between target and current node
         double dist = distance(_items[node->index], target);
@@ -242,7 +240,7 @@ private:
         }
         
         // Return if we arrived at a leaf
-        if(node->left == NULL && node->right == NULL) {
+        if(node->left == nullptr && node->right == nullptr) {
             return;
         }
         

@@ -30,21 +30,21 @@
  *
  */
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <math.h>
-#include <float.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <cstring>
-#include <time.h>
-#include "vptree.h"
-#include "sptree.h"
 #include "tsne.h"
 
-using namespace std;
+#include "vptree.h"
+#include "sptree.h"
+
+#include <cassert>
+#include <cfloat>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <vector>
+
+using std::vector;
 
 #ifdef TSNE3D
 #define NDIMS 3
