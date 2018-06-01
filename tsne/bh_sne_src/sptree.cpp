@@ -32,21 +32,20 @@
 
 #include "sptree.h"
 
-#include <algorithm>  // for move, max
+#include <algorithm>  // for max, max_element
 #include <cfloat>     // for DBL_MAX
 #include <cstdio>     // for fprintf, stderr, size_t
 #include <memory>     // for unique_ptr
+#include <utility>    // for move
 
 using std::max;
 using std::max_element;
 using std::move;
 using std::unique_ptr;
+using std::vector;
 
-// Constructs cell
 template<int NDims>
-Cell<NDims>::Cell(typename Cell<NDims>::point_t&& inp_corner,
-                  const typename Cell<NDims>::point_t* width) :
-    width(width), corner(inp_corner) {}
+Cell<NDims>::Cell(typename Cell<NDims>::point_t&& p) : corner(move(p)) {}
 
 template<int NDims>
 double Cell<NDims>::getCorner(unsigned int d) const {
@@ -54,34 +53,24 @@ double Cell<NDims>::getCorner(unsigned int d) const {
 }
 
 template<int NDims>
-double Cell<NDims>::getWidth(unsigned int d) const {
-    return (*width)[d];
-}
-
-template<int NDims>
 void Cell<NDims>::setCorner(typename Cell<NDims>::point_t&& val) {
     corner = val;
 }
 
-template<int NDims>
-void Cell<NDims>::setWidth(const typename Cell<NDims>::point_t* val) {
-    width = val;
-}
-
 // Checks whether a point lies in a cell
 template<int NDims>
-bool Cell<NDims>::containsPoint(const double* point) const
+bool Cell<NDims>::containsPoint(const double* point, const typename Cell<NDims>::point_t& width) const
 {
     for(int d = 0; d < NDims; d++) {
-        if(corner[d] - (*width)[d] > point[d]) return false;
-        if(corner[d] + (*width)[d] < point[d]) return false;
+        if(corner[d] - width[d] > point[d]) return false;
+        if(corner[d] + width[d] < point[d]) return false;
     }
     return true;
 }
 
 template<int NDims>
-double Cell<NDims>::maxWidth() const {
-    return *max_element(width->begin(), width->end());
+double SPTree<NDims>::maxWidth() const {
+    return *max_element(widths[0].begin(), widths[0].end());
 }
 
 // Top-node constructor for SPTree -- build tree, too!
@@ -103,103 +92,53 @@ SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) {
         nD += NDims;
     }
 
-    for(int d = 0; d < NDims; d++) mean_Y[d] /= (double) N;
+    double dbl_N = static_cast<double>(N);
+    for(int d = 0; d < NDims; d++) mean_Y[d] /= dbl_N;
 
     // Construct SPTree
-    top_widths = unique_ptr<point_t>(new point_t());
-    auto& widths = *top_widths;
+    point_t width;
     for(int d = 0; d < NDims; d++) {
-        widths[d] = max(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
+        width[d] = max(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
     }
-    init(nullptr, inp_data, move(mean_Y), top_widths.get());
+    widths.emplace_back(move(width));
+    node.setCorner(move(mean_Y));
     fill(N);
 }
 
-
-// Constructor for SPTree with particular size and parent -- build the tree, too!
+// Constructor for SPTreeNode.
 template<int NDims>
-SPTree<NDims>::SPTree(const double* inp_data,
-                      unsigned int N,
-                      typename SPTree<NDims>::point_t&& inp_corner,
-                      const typename SPTree<NDims>::point_t* inp_width)
-{
-    init(nullptr, inp_data, move(inp_corner), inp_width);
-    fill(N);
-}
-
-
-// Constructor for SPTree with particular size (do not fill the tree)
-template<int NDims>
-SPTree<NDims>::SPTree(const double* inp_data,
-                      typename SPTree<NDims>::point_t&& inp_corner,
-                      const typename SPTree<NDims>::point_t* inp_width)
-{
-    init(nullptr, inp_data, move(inp_corner), inp_width);
-}
-
-
-// Constructor for SPTree with particular size and parent (do not fill tree)
-template<int NDims>
-SPTree<NDims>::SPTree(SPTree* inp_parent, const double* inp_data,
-                      typename SPTree<NDims>::point_t&& inp_corner,
-                      const typename SPTree<NDims>::point_t* inp_width) {
-    init(inp_parent, inp_data, move(inp_corner), inp_width);
-}
-
-
-// Constructor for SPTree with particular size and parent -- build the tree, too!
-template<int NDims>
-SPTree<NDims>::SPTree(SPTree* inp_parent, const double* inp_data, unsigned int N,
-                      typename SPTree<NDims>::point_t&& inp_corner,
-                      const typename SPTree<NDims>::point_t* inp_width)
-{
-    init(inp_parent, inp_data, move(inp_corner), inp_width);
-    fill(N);
-}
-
-
-// Main initialization function
-template<int NDims>
-void SPTree<NDims>::init(SPTree* inp_parent, const double* inp_data,
-                         typename SPTree<NDims>::point_t&& inp_corner,
-                         const typename SPTree<NDims>::point_t* inp_width)
-{
-    parent = inp_parent;
-    data = inp_data;
-    is_leaf = true;
+SPTreeNode<NDims>::SPTreeNode(typename SPTreeNode<NDims>::point_t&& inp_corner) :
+    boundary(move(inp_corner)) {
     size = 0;
     cum_size = 0;
-
-    boundary.setCorner(move(inp_corner));
-    boundary.setWidth(inp_width);
 
     center_of_mass.fill(0.0);
 }
 
-
-// Update the data underlying this tree
+// Update the corner position.
 template<int NDims>
-void SPTree<NDims>::setData(const double* inp_data)
-{
-    data = inp_data;
+void SPTreeNode<NDims>::setCorner(typename SPTreeNode<NDims>::point_t&& inp_corner) {
+    boundary.setCorner(move(inp_corner));
 }
 
-
-// Get the parent of the current tree
-template<int NDims>
-SPTree<NDims>* SPTree<NDims>::getParent()
-{
-    return parent;
+template <int NDims>
+bool SPTreeNode<NDims>::is_leaf() const {
+    return NDims == 0 || children[0].get() == nullptr;
 }
-
 
 // Insert a point into the SPTree
 template<int NDims>
-bool SPTree<NDims>::insert(unsigned int new_index)
+bool SPTree<NDims>::insert(unsigned int new_index) {
+    return node.insert(new_index, data, &widths, 1);
+}
+
+template<int NDims>
+bool SPTreeNode<NDims>::insert(unsigned int new_index, const double* data, vector<point_t>* widths, typename vector<point_t>::size_type depth)
 {
     // Ignore objects which do not belong in this quad tree
     const double* point = data + new_index * NDims;
-    if(!boundary.containsPoint(point))
+    const auto& width = (*widths)[depth];
+    if(!boundary.containsPoint(point, width))
         return false;
 
     // Online update of cumulative size and center-of-mass
@@ -212,29 +151,31 @@ bool SPTree<NDims>::insert(unsigned int new_index)
     }
 
     // If there is space in this quad tree and it is a leaf, add the object here
-    if(is_leaf && size < QT_NODE_CAPACITY) {
+    if(size < QT_NODE_CAPACITY && is_leaf()) {
         index[size] = new_index;
         size++;
         return true;
     }
 
     // Don't add duplicates for now (this is not very nice)
-    bool any_duplicate = false;
     for(unsigned int n = 0; n < size; n++) {
         bool duplicate = true;
         for(unsigned int d = 0; d < NDims; d++) {
             if(point[d] != data[index[n] * NDims + d]) { duplicate = false; break; }
         }
-        any_duplicate = any_duplicate | duplicate;
+        if (duplicate) {
+            return true;
+        }
     }
-    if(any_duplicate) return true;
 
     // Otherwise, we need to subdivide the current cell
-    if(is_leaf) subdivide();
+    if(is_leaf()) subdivide(data, widths, depth);
 
     // Find out where the point can be inserted
     for(auto& child : children) {
-        if(child->insert(new_index)) return true;
+        if(child->insert(new_index, data, widths, depth+1)) {
+            return true;
+        }
     }
 
     // Otherwise, the point cannot be inserted (this should never happen)
@@ -244,15 +185,21 @@ bool SPTree<NDims>::insert(unsigned int new_index)
 
 // Create four children which fully divide this cell into four quads of equal area
 template<int NDims>
-void SPTree<NDims>::subdivide() {
+void SPTreeNode<NDims>::subdivide(const double* data, vector<point_t>* widths, typename vector<point_t>::size_type depth) {
+
+    // If nessessary, add to the width.
+    if (depth+1 == widths->size()) {
+        // extend the list.
+        point_t child_widths;
+        const point_t& width = (*widths)[depth];
+        for(unsigned int d = 0; d < NDims; d++) {
+            child_widths[d] = .5 * width[d];
+        }
+        widths->emplace_back(move(child_widths));
+    }
+    const point_t& new_width = (*widths)[depth+1];
 
     // Create new children
-    child_widths = unique_ptr<point_t>(new point_t());
-    point_t& new_width = *child_widths;
-    for(unsigned int d = 0; d < NDims; d++) {
-        new_width[d] = .5 * boundary.getWidth(d);
-    }
-
     for(unsigned int i = 0; i < no_children; i++) {
         unsigned int div = 1;
         point_t new_corner;
@@ -263,13 +210,13 @@ void SPTree<NDims>::subdivide() {
                 new_corner[d] = boundary.getCorner(d) + new_width[d];
             div *= 2;
         }
-        children[i] = unique_ptr<SPTree>(new SPTree(this, data, move(new_corner), child_widths.get()));
+        children[i].reset(new SPTreeNode(move(new_corner)));
     }
 
     // Move existing points to correct children
     for(unsigned int i = 0; i < size; i++) {
         for (auto& child : children) {
-            if (child->insert(index[i])) {
+            if (child->insert(index[i], data, widths, depth+1)) {
                 break;
             }
         }
@@ -277,7 +224,6 @@ void SPTree<NDims>::subdivide() {
 
     // Empty parent node
     size = 0;
-    is_leaf = false;
 }
 
 
@@ -293,16 +239,26 @@ void SPTree<NDims>::fill(unsigned int N)
 template<int NDims>
 bool SPTree<NDims>::isCorrect() const
 {
+    return node.isCorrect(data, widths.begin());
+}
+
+
+template<int NDims>
+bool SPTreeNode<NDims>::isCorrect(const double* data,
+                                  typename vector<point_t>::const_iterator width) const {
     for(unsigned int n = 0; n < size; n++) {
         const double* point = data + index[n] * NDims;
-        if(!boundary.containsPoint(point)) return false;
+        if(!boundary.containsPoint(point, *width)) return false;
     }
-    if(!is_leaf) {
-        bool correct = true;
-        for(const auto& child : children) correct = correct && child->isCorrect();
-        return correct;
+    if(!is_leaf()) {
+        ++width;
+        for(const auto& child : children) {
+            if (!child->isCorrect(data, width)) {
+                return false;
+            }
+        }
     }
-    else return true;
+    return true;
 }
 
 
@@ -311,13 +267,13 @@ bool SPTree<NDims>::isCorrect() const
 template<int NDims>
 void SPTree<NDims>::getAllIndices(unsigned int* indices) const
 {
-    getAllIndices(indices, 0);
+    node.getAllIndices(indices, 0);
 }
 
 
 // Build a list of all indices in SPTree
 template<int NDims>
-unsigned int SPTree<NDims>::getAllIndices(unsigned int* indices, unsigned int loc) const
+unsigned int SPTreeNode<NDims>::getAllIndices(unsigned int* indices, unsigned int loc) const
 {
 
     // Gather indices in current quadrant
@@ -325,15 +281,21 @@ unsigned int SPTree<NDims>::getAllIndices(unsigned int* indices, unsigned int lo
     loc += size;
 
     // Gather indices in children
-    if(!is_leaf) {
-        for(const auto& child : children) loc = child->getAllIndices(indices, loc);
+    if(!is_leaf()) {
+        for(const auto& child : children)
+            loc = child->getAllIndices(indices, loc);
     }
     return loc;
 }
 
 template<int NDims>
 unsigned int SPTree<NDims>::getDepth() const {
-    if(is_leaf) return 1;
+    return node.getDepth();
+}
+
+template<int NDims>
+unsigned int SPTreeNode<NDims>::getDepth() const {
+    if(is_leaf()) return 1;
     unsigned int depth = 0;
     for(const auto& child : children) depth = max(depth, child->getDepth());
     return 1u + depth;
@@ -341,45 +303,43 @@ unsigned int SPTree<NDims>::getDepth() const {
 
 // Compute non-edge forces using Barnes-Hut algorithm
 template<int NDims>
-void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q) {
-    double max_width = boundary.maxWidth();
-    computeNonEdgeForces(point_index, theta, neg_f, sum_Q, max_width*max_width);
+void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q) const {
+    double max_width = maxWidth();
+    node.computeNonEdgeForces(point_index, data + point_index * NDims, theta, neg_f, sum_Q, max_width*max_width);
 }
 
 // Compute non-edge forces using Barnes-Hut algorithm
 template<int NDims>
-void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q, double max_width_squared)
+void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
+    const double* data_point, double theta, double neg_f[], double* sum_Q,
+    double max_width_squared) const
 {
 
     // Make sure that we spend no time on empty nodes or self-interactions
-    if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
+    if(cum_size == 0 || (is_leaf() && size == 1 && index[0] == point_index)) return;
 
     // Compute distance between point and center-of-mass
     double sqdist = .0;
-    size_t ind = point_index * NDims;
 
-    for(const auto& cm : center_of_mass) {
-        double diff = data[ind] - cm;
-        ind += NDims;
+    for(int i = 0; i < NDims; ++i) {
+        double diff = data_point[i] - center_of_mass[i];
         sqdist += diff * diff;
     }
 
     // Check whether we can use this node as a "summary"
     // max_width / sqrt(sqdist) < theta
-    if(is_leaf || max_width_squared < theta * theta * sqdist) {
+    if(is_leaf() || max_width_squared < theta * theta * sqdist) {
 
         // Compute and add t-SNE force between point and current node
         sqdist = 1.0 / (1.0 + sqdist);
         double mult = cum_size * sqdist;
         *sum_Q += mult;
         mult *= sqdist;
-        ind = point_index * NDims;
         for(size_t d = 0; d < NDims; ++d) {
             // recompute here rather than storing from before because memory
             // locality matters more than an extra couple of additions and a
             // subtraction.
-            double diff = data[ind] - center_of_mass[d];
-            ind += NDims;
+            double diff = data_point[d] - center_of_mass[d];
             neg_f[d] += mult * diff;
         }
     }
@@ -388,15 +348,15 @@ void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta,
         // Recursively apply Barnes-Hut to children
         max_width_squared /= 4.0;
         for(unsigned int i = 0; i < no_children; i++)
-            children[i]->computeNonEdgeForces(
-                    point_index, theta, neg_f, sum_Q, max_width_squared);
+            children[i]->computeNonEdgeForces(point_index, data_point,
+                    theta, neg_f, sum_Q, max_width_squared);
     }
 }
 
 
 // Computes edge forces
 template<int NDims>
-void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f)
+void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f) const
 {
 
     // Loop over all edges in the graph
@@ -426,17 +386,22 @@ void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, 
     }
 }
 
+// Print out tree
+template<int NDims>
+void SPTree<NDims>::print() const {
+    node.print(data);
+}
 
 // Print out tree
 template<int NDims>
-void SPTree<NDims>::print()
+void SPTreeNode<NDims>::print(const double* data) const
 {
     if(cum_size == 0) {
         fprintf(stderr,"Empty node\n");
         return;
     }
 
-    if(is_leaf) {
+    if(is_leaf()) {
         fprintf(stderr,"Leaf node; data = [");
         for(int i = 0; i < size; i++) {
             const double* point = data + index[i] * NDims;
@@ -450,7 +415,7 @@ void SPTree<NDims>::print()
         fprintf(stderr,"Intersection node with center-of-mass = [");
         for(const auto& cm : center_of_mass) fprintf(stderr,"%f, ", cm);
         fprintf(stderr,"]; children are:\n");
-        for(int i = 0; i < no_children; i++) children[i]->print();
+        for(int i = 0; i < no_children; i++) children[i]->print(data);
     }
 }
 

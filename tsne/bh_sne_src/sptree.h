@@ -36,106 +36,118 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 
 template <int NDims=2>
-class Cell {
+class Cell final {
  public:
     typedef std::array<double, NDims> point_t;
 
     Cell() = default;
-    Cell(point_t&& inp_corner, const point_t* width);
+    Cell(point_t&&);
 
     double getCorner(unsigned int d) const;
-    double getWidth(unsigned int d) const;
     void setCorner(point_t&& inp_corner);
-    void setWidth(const point_t* width);
-    bool containsPoint(const double* point) const;
-    double maxWidth() const;
+    bool containsPoint(const double* point, const point_t& width) const;
 
  private:
     point_t corner;
-    const point_t* width;
 
     // disallow copy
     Cell(const Cell&) = delete;
+};
+
+template <int NDims>
+class SPTreeNode final {
+public:
+
+    typedef typename Cell<NDims>::point_t point_t;
+    enum { no_children = 2 * SPTreeNode<NDims-1>::no_children };
+
+private:
+
+    // Fixed constants
+    static constexpr unsigned int QT_NODE_CAPACITY = 1;
+
+    // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
+    Cell<NDims> boundary;
+
+    // Properties of this node in the tree
+    unsigned int size;
+    unsigned int cum_size;
+
+    // Indices in this space-partitioning tree node, corresponding center-of-mass, and list of all children
+    point_t center_of_mass;
+    std::array<unsigned int, QT_NODE_CAPACITY> index;
+
+    // Children
+    std::array<std::unique_ptr<SPTreeNode<NDims>>, no_children> children;
+
+    // Disallow copy
+    SPTreeNode(const SPTreeNode&) = delete;
+
+    void subdivide(const double* data, std::vector<point_t>* widths, typename std::vector<point_t>::size_type depth);
+
+    bool is_leaf() const;
+
+public:
+    SPTreeNode() = default;
+    SPTreeNode(point_t&& corner);
+
+    void setCorner(point_t&& corner);
+
+    bool insert(unsigned int new_index, const double* data, std::vector<point_t>* widths, typename std::vector<point_t>::size_type depth);
+    bool isCorrect(const double* data, typename std::vector<point_t>::const_iterator width) const;
+
+    void computeNonEdgeForces(unsigned int point_index,
+                              const double* data_point,
+                              double theta,
+                              double neg_f[],
+                              double* sum_Q,
+                              double max_width_squared) const;
+    unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
+    unsigned int getDepth() const;
+    void print(const double* data) const;
+};
+
+template <>
+struct SPTreeNode<0>
+{
+    enum { 	no_children = 1 };
 };
 
 template <int NDims=2>
 class SPTree
 {
 public:
-   enum { no_children = 2 * SPTree<NDims-1>::no_children };
-
-   typedef typename Cell<NDims>::point_t point_t;
+    typedef typename SPTreeNode<NDims>::point_t point_t;
+    enum { no_children = SPTreeNode<NDims>::no_children };
 
 private:
-    // Fixed constants
-    static const unsigned int QT_NODE_CAPACITY = 1;
+    SPTreeNode<NDims> node;
 
-    // Properties of this node in the tree
-    SPTree<NDims>* parent;
-    unsigned int dimension;
-    bool is_leaf;
-    unsigned int size;
-    unsigned int cum_size;
+    // The width for each cell is the same at each level.  The top node owns
+    // this and the children get references to it.
+    std::vector<point_t> widths;
+    bool insert(unsigned int new_index);
 
-    // The width for each cell is the same at each level.  The parent
-    // node owns the widths array for its children.  The top node must
-    // also own the array for itself.
-    std::unique_ptr<point_t> top_widths;
-    std::unique_ptr<point_t> child_widths;
-
-    // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
-    Cell<NDims> boundary;
-
-    // Indices in this space-partitioning tree node, corresponding center-of-mass, and list of all children
     const double* data;
-    point_t center_of_mass;
-    std::array<unsigned int, QT_NODE_CAPACITY> index;
-
-    // Children
-    std::array<std::unique_ptr<SPTree<NDims>>, no_children> children;
-
-    SPTree(const double* inp_data, point_t&& inp_corner, const point_t* inp_width);
-    SPTree(const double* inp_data, unsigned int N, point_t&& inp_corner, const point_t* inp_width);
-    SPTree(SPTree* inp_parent, const double* inp_data, unsigned int N, point_t&& inp_corner, const point_t* inp_width);
-    SPTree(SPTree* inp_parent, const double* inp_data, point_t&& inp_corner, const point_t* inp_width);
-
-    // Disallow copy
-    SPTree(const SPTree&) = delete;
+    double maxWidth() const;
 
 public:
     SPTree(const double* inp_data, unsigned int N);
 
-    void setData(const double* inp_data);
-    SPTree* getParent();
-    void construct(Cell<NDims> boundary);
-    bool insert(unsigned int new_index);
-    void subdivide();
     bool isCorrect() const;
-    void rebuildTree();
     void getAllIndices(unsigned int* indices) const;
     unsigned int getDepth() const;
-    void computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q);
-    void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f);
-    void print();
+    void computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q) const;
+    void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f) const;
+    void print() const;
 
 private:
-    void init(SPTree* inp_parent, const double* inp_data, point_t&& inp_corner, const point_t* inp_width);
-    void computeNonEdgeForces(unsigned int point_index,
-                              double theta,
-                              double neg_f[],
-                              double* sum_Q,
-                              double max_width_squared);
     void fill(unsigned int N);
-    unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
-    bool isChild(unsigned int test_index, unsigned int start, unsigned int end);
-};
-
-template <>
-struct SPTree<0>
-{
-    enum { 	no_children = 1 };
+    // Disallow copy
+    SPTree(const SPTree&) = delete;
 };
 
 #endif
