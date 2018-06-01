@@ -38,6 +38,8 @@
 #include <memory>
 #include <vector>
 
+namespace _sptree_internal {
+
 template <int NDims=2>
 class Cell final {
  public:
@@ -116,15 +118,17 @@ struct SPTreeNode<0>
     enum { 	no_children = 1 };
 };
 
+}  // namespace _sptree_internal
+
 template <int NDims=2>
 class SPTree
 {
 public:
-    typedef typename SPTreeNode<NDims>::point_t point_t;
-    enum { no_children = SPTreeNode<NDims>::no_children };
+    typedef typename _sptree_internal::SPTreeNode<NDims>::point_t point_t;
+    enum { no_children = _sptree_internal::SPTreeNode<NDims>::no_children };
 
 private:
-    SPTreeNode<NDims> node;
+    _sptree_internal::SPTreeNode<NDims> node;
 
     // The width for each cell is the same at each level.  The top node owns
     // this and the children get references to it.
