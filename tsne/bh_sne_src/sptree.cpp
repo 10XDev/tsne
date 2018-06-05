@@ -36,18 +36,16 @@
 #include <cfloat>     // for DBL_MAX
 #include <cstdio>     // for fprintf, stderr, size_t
 #include <memory>     // for unique_ptr
-#include <utility>    // for move
 
 using std::max;
 using std::max_element;
-using std::move;
 using std::unique_ptr;
 using std::vector;
 
 namespace _sptree_internal {
 
 template<int NDims>
-Cell<NDims>::Cell(typename Cell<NDims>::point_t&& p) : corner(move(p)) {}
+Cell<NDims>::Cell(const typename Cell<NDims>::point_t& p) : corner(p) {}
 
 template<int NDims>
 double Cell<NDims>::getCorner(unsigned int d) const {
@@ -55,15 +53,20 @@ double Cell<NDims>::getCorner(unsigned int d) const {
 }
 
 template<int NDims>
-void Cell<NDims>::setCorner(typename Cell<NDims>::point_t&& val) {
+void Cell<NDims>::setCorner(const typename Cell<NDims>::point_t& val) {
     corner = val;
+}
+
+template<int NDims>
+void Cell<NDims>::setCorner(unsigned int d, double val) {
+    corner[d] = val;
 }
 
 // Checks whether a point lies in a cell
 template<int NDims>
 bool Cell<NDims>::containsPoint(const double* point, const typename Cell<NDims>::point_t& width) const
 {
-    for(int d = 0; d < NDims; d++) {
+    for(int d = 0; d < NDims; ++d) {
         if(corner[d] - width[d] > point[d]) return false;
         if(corner[d] + width[d] < point[d]) return false;
     }
@@ -72,13 +75,21 @@ bool Cell<NDims>::containsPoint(const double* point, const typename Cell<NDims>:
 
 // Constructor for SPTreeNode.
 template<int NDims>
-SPTreeNode<NDims>::SPTreeNode(typename SPTreeNode<NDims>::point_t&& inp_corner) :
-    boundary(move(inp_corner)) {}
+SPTreeNode<NDims>::SPTreeNode(const typename SPTreeNode<NDims>::point_t& inp_corner) :
+    boundary(inp_corner), size(0), cum_size(0) {
+    center_of_mass.fill(0.0);
+}
+// Constructor for SPTreeNode.
+template<int NDims>
+SPTreeNode<NDims>::SPTreeNode() :
+    size(0), cum_size(0) {
+    center_of_mass.fill(0.0);
+}
 
 // Update the corner position.
 template<int NDims>
-void SPTreeNode<NDims>::setCorner(typename SPTreeNode<NDims>::point_t&& inp_corner) {
-    boundary.setCorner(move(inp_corner));
+void SPTreeNode<NDims>::setCorner(const typename SPTreeNode<NDims>::point_t& inp_corner) {
+    boundary.setCorner(inp_corner);
 }
 
 template <int NDims>
@@ -91,8 +102,7 @@ bool SPTreeNode<NDims>::insert(unsigned int new_index, const double* data, vecto
 {
     // Ignore objects which do not belong in this quad tree
     const double* point = data + new_index * NDims;
-    const auto& width = (*widths)[depth];
-    if(!boundary.containsPoint(point, width))
+    if(!boundary.containsPoint(point, (*widths)[depth]))
         return false;
 
     // Online update of cumulative size and center-of-mass
@@ -144,27 +154,27 @@ void SPTreeNode<NDims>::subdivide(const double* data, vector<point_t>* widths, t
     // If nessessary, add to the width.
     if (depth+1 == widths->size()) {
         // extend the list.
-        point_t child_widths;
+        widths->emplace_back();
+        point_t& child_widths = widths->back();
         const point_t& width = (*widths)[depth];
         for(unsigned int d = 0; d < NDims; d++) {
             child_widths[d] = .5 * width[d];
         }
-        widths->emplace_back(move(child_widths));
     }
     const point_t& new_width = (*widths)[depth+1];
 
     // Create new children
     for(unsigned int i = 0; i < no_children; i++) {
         unsigned int div = 1;
-        point_t new_corner;
+        children[i].reset(new SPTreeNode());
+        Cell<NDims>& new_corner = children[i]->boundary;
         for(unsigned int d = 0; d < NDims; d++) {
             if((i / div) % 2 == 1)
-                new_corner[d] = boundary.getCorner(d) - new_width[d];
+                new_corner.setCorner(d, boundary.getCorner(d) - new_width[d]);
             else
-                new_corner[d] = boundary.getCorner(d) + new_width[d];
+                new_corner.setCorner(d, boundary.getCorner(d) + new_width[d]);
             div *= 2;
         }
-        children[i].reset(new SPTreeNode(move(new_corner)));
     }
 
     // Move existing points to correct children
@@ -231,7 +241,10 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
 {
 
     // Make sure that we spend no time on empty nodes or self-interactions
-    if(cum_size == 0 || (is_leaf() && size == 1 && index[0] == point_index)) return;
+    if(cum_size == 0 ||
+       (size == 1 &&
+        __builtin_expect(index[0] == point_index, 0) &&
+        is_leaf())) return;
 
     // Compute distance between point and center-of-mass
     double sqdist = .0;
@@ -306,7 +319,7 @@ double SPTree<NDims>::maxWidth() const {
 
 // Top-node constructor for SPTree -- build tree, too!
 template<int NDims>
-SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) {
+SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) : data(inp_data) {
     // Compute mean, width, and height of current map (boundaries of SPTree)
     int nD = 0;
     point_t mean_Y, min_Y, max_Y;
@@ -314,32 +327,33 @@ SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) {
     min_Y.fill(DBL_MAX);
     max_Y.fill(-DBL_MAX);
 
-    for(unsigned int n = 0; n < N; n++) {
-        for(unsigned int d = 0; d < NDims; d++) {
-            mean_Y[d] += inp_data[n * NDims + d];
-            if(inp_data[nD + d] < min_Y[d]) min_Y[d] = inp_data[nD + d];
-            if(inp_data[nD + d] > max_Y[d]) max_Y[d] = inp_data[nD + d];
+    const double *elem = inp_data;
+    for(unsigned int n = 0; n < N; ++n) {
+        for(unsigned int d = 0; d < NDims; ++d) {
+            mean_Y[d] += elem[d];
+            if(elem[d] < min_Y[d]) min_Y[d] = elem[d];
+            if(elem[d] > max_Y[d]) max_Y[d] = elem[d];
         }
-        nD += NDims;
+        elem += NDims;
     }
 
     double dbl_N = static_cast<double>(N);
     for(int d = 0; d < NDims; d++) mean_Y[d] /= dbl_N;
 
     // Construct SPTree
-    point_t width;
+    widths.emplace_back();
+    point_t& width = widths.back();
     for(int d = 0; d < NDims; d++) {
         width[d] = max(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
     }
-    widths.emplace_back(move(width));
-    node.setCorner(move(mean_Y));
+    node.setCorner(mean_Y);
     fill(N);
 }
 
 // Insert a point into the SPTree
 template<int NDims>
 bool SPTree<NDims>::insert(unsigned int new_index) {
-    return node.insert(new_index, data, &widths, 1);
+    return node.insert(new_index, data, &widths, 0);
 }
 
 
@@ -393,17 +407,17 @@ void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, 
             sqdist = 1.0;
             unsigned int ind2 = col_P[i] * NDims;
 
+            std::array<double, NDims> diffs;
             for(unsigned int d = 0; d < NDims; d++) {
-                double diff = data[ind1 + d] - data[ind2 + d];
-                sqdist += diff * diff;
+                diffs[d] = data[ind1 + d] - data[ind2 + d];
+                sqdist += diffs[d] * diffs[d];
             }
 
             sqdist = val_P[i] / sqdist;
 
             // Sum positive force
             for(unsigned int d = 0; d < NDims; d++) {
-                double diff = data[ind1 + d] - data[ind2 + d];
-                pos_f[ind1 + d] += sqdist * diff;
+                pos_f[ind1 + d] += sqdist * diffs[d];
             }
         }
         ind1 += NDims;

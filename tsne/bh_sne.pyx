@@ -21,8 +21,11 @@ cdef class BH_SNE:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def run(self, X, N, D, d, perplexity, theta, seed, init, use_init, max_iter, stop_lying_iter, mom_switch_iter):
-        cdef np.ndarray[np.float64_t, ndim=2, mode='c'] _X = np.ascontiguousarray(X)
-        cdef np.ndarray[np.float64_t, ndim=2, mode='c'] _init = np.ascontiguousarray(init)
-        cdef np.ndarray[np.float64_t, ndim=2, mode='c'] Y = np.zeros((N, d), dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=2, mode='c'] _X = np.ascontiguousarray(X, dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=2, mode='c'] _init = np.ascontiguousarray(init, dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=2, mode='c'] Y = np.zeros((N, d), dtype=np.float64, order='C')
+        assert(d, 2)
+        assert(d, X.shape[0])
+        assert(N, X.shape[1])
         self.thisptr.run(&_X[0,0], N, D, &Y[0,0], d, perplexity, theta, seed, False, &_init[0,0], use_init, max_iter, stop_lying_iter, mom_switch_iter)
         return Y

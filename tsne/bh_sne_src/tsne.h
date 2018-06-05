@@ -56,7 +56,7 @@ private:
     double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, const double* Y, int N, int D, double theta);
     void zeroMean(double* X, int N, int D);
     void computeGaussianPerplexity(const double* X, int N, int D, double* P, double perplexity);
-    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
+    void computeGaussianPerplexity(const double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
     void computeSquaredEuclideanDistance(const double* X, int N, int D, double* DD);
     double randn();
 };

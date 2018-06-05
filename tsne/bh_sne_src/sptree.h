@@ -46,10 +46,11 @@ class Cell final {
     typedef std::array<double, NDims> point_t;
 
     Cell() = default;
-    Cell(point_t&&);
+    explicit Cell(const point_t&);
 
     double getCorner(unsigned int d) const;
-    void setCorner(point_t&& inp_corner);
+    void setCorner(const point_t& inp_corner);
+    void setCorner(unsigned int d, double val);
     bool containsPoint(const double* point, const point_t& width) const;
 
  private:
@@ -93,10 +94,10 @@ private:
     bool is_leaf() const;
 
 public:
-    SPTreeNode() = default;
-    SPTreeNode(point_t&& corner);
+    SPTreeNode();
+    explicit SPTreeNode(const point_t& corner);
 
-    void setCorner(point_t&& corner);
+    void setCorner(const point_t& corner);
 
     bool insert(unsigned int new_index, const double* data, std::vector<point_t>* widths, typename std::vector<point_t>::size_type depth);
     bool isCorrect(const double* data, typename std::vector<point_t>::const_iterator width) const;

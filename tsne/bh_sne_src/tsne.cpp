@@ -83,12 +83,9 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     double eta = 200.0;
 
     // Allocate some memory
-    double* dY    = (double*) malloc(N * no_dims * sizeof(double));
-    double* uY    = (double*) malloc(N * no_dims * sizeof(double));
-    double* gains = (double*) malloc(N * no_dims * sizeof(double));
-    if(dY == NULL || uY == NULL || gains == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
-    for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
-    for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
+    vector<double> dY(N * no_dims);
+    vector<double> uY(N * no_dims, .0);
+    vector<double> gains(N * no_dims, 1.0);
 
     // Normalize input data (to prevent numerical problems)
     fprintf(stderr,"Computing input similarities...\n");
@@ -164,8 +161,8 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 	for(int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
-        if(exact) computeExactGradient(P, Y, N, no_dims, dY);
-        else computeGradient(P, row_P, col_P, val_P, Y, N, no_dims, dY, theta);
+        if(exact) computeExactGradient(P, Y, N, no_dims, dY.data());
+        else computeGradient(P, row_P, col_P, val_P, Y, N, no_dims, dY.data(), theta);
 
         // Update gains
         for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -203,9 +200,6 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
 
     // Clean up memory
-    free(dY);
-    free(uY);
-    free(gains);
     if(exact) free(P);
     else {
         free(row_P); row_P = NULL;
@@ -219,8 +213,6 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
 void TSNE::computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, const double* Y, int N, int D, double* dC, double theta)
 {
-    assert(D == NDIMS);
-
     // Construct space-partitioning tree on current map
     SPTree<NDIMS> tree(Y, N);
 
@@ -426,7 +418,7 @@ void TSNE::computeGaussianPerplexity(const double* X, int N, int D, double* P, d
 
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K) {
+void TSNE::computeGaussianPerplexity(const double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K) {
 
     if(perplexity > K) fprintf(stderr,"Perplexity should be lower than K!\n");
 
