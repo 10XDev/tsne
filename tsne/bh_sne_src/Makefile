@@ -10,10 +10,10 @@ LDFLAGS += -Wl,--gc-sections
 
 all: bh_tsne bh_tsne_3d
 
-bh_tsne: tsne.o sptree.o
+bh_tsne: main.o tsne.o sptree.o
 	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
-bh_tsne_3d: tsne_3d.o sptree.o
+bh_tsne_3d: tsne_3d.o sptree.o main.o
 	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
 sptree.o: sptree.cpp sptree.h
@@ -24,6 +24,9 @@ tsne.o: tsne.cpp tsne.h sptree.h vptree.h
 
 tsne_3d.o: tsne.cpp tsne.h sptree.h vptree.h
 	$(CXX) $(CFLAGS) -DTSNE3D -c $< -o $@
+
+main.o: main.cpp tsne.h sptree.h vptree.h
+	$(CXX) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -Rf *.o bh_tsne bh_tsne_3d
