@@ -48,14 +48,6 @@ else:
                    extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-std=c++11',
                                        '-ffunction-sections', '-flto'],
                    extra_link_args=['-Wl,--gc-sections', '-flto'],
-                   language='c++'),
-
-                   Extension(name='bh_sne_3d',
-                   sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne_3d.pyx'],
-                   include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
-                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-DTSNE3D',
-                                       '-std=c++11', '-ffunction-sections', '-flto'],
-                   extra_link_args=['-Wl,--gc-sections', '-flto'],
                    language='c++')]
 
 ext_modules = cythonize(ext_modules)
