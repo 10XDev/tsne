@@ -46,19 +46,7 @@ public:
 	     );
     bool load_data(const char* dat_file, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
     void save_data(const char* res_file, double* data, int* landmarks, double* costs, int n, int d);
-    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
     void save_csv(const char* csv_file, double* Y, int N, int D);
-
-private:
-    void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, const double* Y, int N, int D, double* dC, double theta);
-    void computeExactGradient(double* P, const double* Y, int N, int D, double* dC);
-    double evaluateError(double* P, const double* Y, int N, int D);
-    double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, const double* Y, int N, int D, double theta);
-    void zeroMean(double* X, int N, int D);
-    void computeGaussianPerplexity(const double* X, int N, int D, double* P, double perplexity);
-    void computeGaussianPerplexity(const double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
-    void computeSquaredEuclideanDistance(const double* X, int N, int D, double* DD);
-    double randn();
 };
 
 #endif

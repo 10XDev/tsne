@@ -37,6 +37,7 @@
 #include <cstdio>     // for fprintf, stderr, size_t
 #include <memory>     // for unique_ptr
 
+using std::array;
 using std::max;
 using std::max_element;
 using std::unique_ptr;
@@ -249,9 +250,10 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
     // Compute distance between point and center-of-mass
     double sqdist = .0;
 
+    array<double, NDims> diff;
     for(int i = 0; i < NDims; ++i) {
-        double diff = data_point[i] - center_of_mass[i];
-        sqdist += diff * diff;
+        diff[i] = data_point[i] - center_of_mass[i];
+        sqdist += diff[i] * diff[i];
     }
 
     // Check whether we can use this node as a "summary"
@@ -264,11 +266,7 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         *sum_Q += mult;
         mult *= sqdist;
         for(size_t d = 0; d < NDims; ++d) {
-            // recompute here rather than storing from before because memory
-            // locality matters more than an extra couple of additions and a
-            // subtraction.
-            double diff = data_point[d] - center_of_mass[d];
-            neg_f[d] += mult * diff;
+            neg_f[d] += mult * diff[d];
         }
     }
     else {
