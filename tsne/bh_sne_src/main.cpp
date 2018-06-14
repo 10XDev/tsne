@@ -57,23 +57,22 @@ int main(int argc, char *argv[]) {
 	double perc_landmarks;
 	double perplexity, theta, *data;
     int rand_seed = -1;
-    TSNE tsne;
 
     // Read the parameters and the dataset
-	if(tsne.load_data(dat_file, &data, &origN, &D, &no_dims, &theta, &perplexity, &rand_seed, &max_iter)) {
+	if(TSNE::load_data(dat_file, &data, &origN, &D, &no_dims, &theta, &perplexity, &rand_seed, &max_iter)) {
 
 		// Make dummy landmarks
         N = origN;
 
 		// Now fire up the SNE implementation
 		vector<double> Y(N * no_dims);
-	    tsne.run(data, N, D, Y.data(), no_dims, perplexity, theta, rand_seed, false, NULL, false, max_iter);
+        TSNE::run(data, N, D, Y.data(), no_dims, perplexity, theta, rand_seed, false, NULL, false, max_iter);
 
 		// Save the results
         vector<int> landmarks(N);
         for(int n = 0; n < N; n++) landmarks[n] = n;
 		vector<double> costs(N);
-		tsne.save_data(res_file, Y.data(), landmarks.data(), costs.data(), N, no_dims);
+        TSNE::save_data(res_file, Y.data(), landmarks.data(), costs.data(), N, no_dims);
 
         // Clean up the memory
 		free(data); data = NULL;

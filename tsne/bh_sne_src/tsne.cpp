@@ -47,7 +47,10 @@
 using std::array;
 using std::vector;
 
+namespace TSNE {
 namespace {
+
+static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
 
 void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N);
 template <int D>
@@ -115,14 +118,14 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     for(int i = 0; i < N * D; i++) X[i] /= max_X;
 
     // Compute input similarities for exact t-SNE
-    double* P; unsigned int* row_P; unsigned int* col_P; double* val_P;
+    vector<double> P;
+    unsigned int* row_P; unsigned int* col_P; double* val_P;
     if(exact) {
 
         // Compute similarities
         fprintf(stderr,"Exact?");
-        P = (double*) malloc(N * N * sizeof(double));
-        if(P == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
-        computeGaussianPerplexity(X, N, D, P, perplexity);
+        P.resize(N * N);
+        computeGaussianPerplexity(X, N, D, P.data(), perplexity);
 
         // Symmetrize input similarities
         fprintf(stderr,"Symmetrizing...\n");
@@ -178,8 +181,8 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
 	for(int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
-        if(exact) computeExactGradient<no_dims>(P, Y, N, dY.data());
-        else computeGradient<no_dims>(P, row_P, col_P, val_P, Y, N, dY.data(), theta);
+        if(exact) computeExactGradient<no_dims>(P.data(), Y, N, dY.data());
+        else computeGradient<no_dims>(P.data(), row_P, col_P, val_P, Y, N, dY.data(), theta);
 
         // Update gains
         for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -203,7 +206,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
         if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
             end = clock();
             double C = .0;
-            if(exact) C = evaluateError<no_dims>(P, Y, N);
+            if(exact) C = evaluateError<no_dims>(P.data(), Y, N);
             else      C = evaluateError<no_dims>(row_P, col_P, val_P, Y, N, theta);  // doing approximate computation here!
             if(iter == 0)
                 fprintf(stderr,"Iteration %d: error is %f\n", iter + 1, C);
@@ -217,8 +220,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
 
     // Clean up memory
-    if(exact) free(P);
-    else {
+    if(!exact) {
         free(row_P); row_P = NULL;
         free(col_P); col_P = NULL;
         free(val_P); val_P = NULL;
@@ -524,8 +526,7 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _va
     double* val_P = *_val_P;
 
     // Count number of elements and row counts of symmetric matrix
-    int* row_counts = (int*) calloc(N, sizeof(int));
-    if(row_counts == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
+    vector<int> row_counts(N);
     for(int n = 0; n < N; n++) {
         for(int i = row_P[n]; i < row_P[n + 1]; i++) {
 
@@ -555,8 +556,7 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _va
     for(int n = 0; n < N; n++) sym_row_P[n + 1] = sym_row_P[n] + (unsigned int) row_counts[n];
 
     // Fill the result matrix
-    int* offset = (int*) calloc(N, sizeof(int));
-    if(offset == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
+    vector<int> offset(N);
     for(int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {                                  // considering element(n, col_P[i])
 
@@ -597,10 +597,6 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _va
     free(*_row_P); *_row_P = sym_row_P;
     free(*_col_P); *_col_P = sym_col_P;
     free(*_val_P); *_val_P = sym_val_P;
-
-    // Free up some memery
-    free(offset); offset = NULL;
-    free(row_counts); row_counts  = NULL;
 }
 
 // Compute squared Euclidean distance matrix
@@ -712,20 +708,20 @@ double randn() {
 }  // namespace
 
 // Perform t-SNE
-void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
                bool skip_random_init, double *init, bool use_init,
 	           int max_iter, int stop_lying_iter, int mom_switch_iter
                ) {
     switch(no_dims) {
       case 2:
-        ::run<2>(X, N, D, Y, perplexity, theta, rand_seed,
-                 skip_random_init, init, use_init,
-                 max_iter, stop_lying_iter, mom_switch_iter);
+        run<2>(X, N, D, Y, perplexity, theta, rand_seed,
+               skip_random_init, init, use_init,
+               max_iter, stop_lying_iter, mom_switch_iter);
         return;
       case 3:
-        ::run<3>(X, N, D, Y, perplexity, theta, rand_seed,
-                 skip_random_init, init, use_init,
-                 max_iter, stop_lying_iter, mom_switch_iter);
+        run<3>(X, N, D, Y, perplexity, theta, rand_seed,
+               skip_random_init, init, use_init,
+               max_iter, stop_lying_iter, mom_switch_iter);
         return;
       default:
         assert("no_dims must be 2 or 3");
@@ -734,7 +730,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
 // Function that loads data from a t-SNE file
 // Note: this function does a malloc that should be freed elsewhere
-bool TSNE::load_data(const char* dat_file, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
+bool load_data(const char* dat_file, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
 
 	// Open file, read first 2 integers, allocate memory, and read the data
     FILE *h;
@@ -758,7 +754,7 @@ bool TSNE::load_data(const char* dat_file, double** data, int* n, int* d, int* n
 }
 
 // Function that saves map to a t-SNE file
-void TSNE::save_data(const char* res_file, double* data, int* landmarks, double* costs, int n, int d) {
+void save_data(const char* res_file, double* data, int* landmarks, double* costs, int n, int d) {
 
 	// Open file, write first 2 integers and then the data
 	FILE *h;
@@ -775,7 +771,7 @@ void TSNE::save_data(const char* res_file, double* data, int* landmarks, double*
 	fprintf(stderr,"Wrote the %i x %i data matrix successfully!\n", n, d);
 }
 
-void TSNE::save_csv(const char* csv_file, double* Y, int N, int D) {
+void save_csv(const char* csv_file, double* Y, int N, int D) {
     std::ofstream csv(csv_file);
 
     for (int d = 0; d < D; d++) {
@@ -793,3 +789,5 @@ void TSNE::save_csv(const char* csv_file, double* Y, int N, int D) {
 
     csv.close();
 }
+
+}  // namespace TSNE
