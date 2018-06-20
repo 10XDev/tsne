@@ -30,11 +30,10 @@
  *
  */
 
+
 #include "tsne.h"
 
-#include "vptree.h"
-#include "sptree.h"
-
+#include <array>
 #include <cassert>
 #include <cfloat>
 #include <cmath>
@@ -43,6 +42,9 @@
 #include <ctime>
 #include <fstream>
 #include <vector>
+
+#include "vptree.h"
+#include "sptree.h"
 
 using std::array;
 using std::vector;
@@ -726,68 +728,6 @@ void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, dou
       default:
         assert("no_dims must be 2 or 3");
     }
-}
-
-// Function that loads data from a t-SNE file
-// Note: this function does a malloc that should be freed elsewhere
-bool load_data(const char* dat_file, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
-
-	// Open file, read first 2 integers, allocate memory, and read the data
-    FILE *h;
-	if((h = fopen(dat_file, "r+b")) == NULL) {
-		fprintf(stderr,"Error: could not open data file.\n");
-		return false;
-	}
-	fread(n, sizeof(int), 1, h);											// number of datapoints
-	fread(d, sizeof(int), 1, h);											// original dimensionality
-    fread(theta, sizeof(double), 1, h);										// gradient accuracy
-	fread(perplexity, sizeof(double), 1, h);								// perplexity
-	fread(no_dims, sizeof(int), 1, h);                                      // output dimensionality
-    fread(max_iter, sizeof(int),1,h);                                       // maximum number of iterations
-	*data = (double*) malloc(*d * *n * sizeof(double));
-    if(*data == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
-    fread(*data, sizeof(double), *n * *d, h);                               // the data
-    if(!feof(h)) fread(rand_seed, sizeof(int), 1, h);                       // random seed
-	fclose(h);
-	fprintf(stderr,"Read the %i x %i data matrix successfully!\n", *n, *d);
-	return true;
-}
-
-// Function that saves map to a t-SNE file
-void save_data(const char* res_file, double* data, int* landmarks, double* costs, int n, int d) {
-
-	// Open file, write first 2 integers and then the data
-	FILE *h;
-	if((h = fopen(res_file, "w+b")) == NULL) {
-		fprintf(stderr,"Error: could not open data file.\n");
-		return;
-	}
-	fwrite(&n, sizeof(int), 1, h);
-	fwrite(&d, sizeof(int), 1, h);
-    fwrite(data, sizeof(double), n * d, h);
-	fwrite(landmarks, sizeof(int), n, h);
-    fwrite(costs, sizeof(double), n, h);
-    fclose(h);
-	fprintf(stderr,"Wrote the %i x %i data matrix successfully!\n", n, d);
-}
-
-void save_csv(const char* csv_file, double* Y, int N, int D) {
-    std::ofstream csv(csv_file);
-
-    for (int d = 0; d < D; d++) {
-        csv << "TSNE" << d+1 << ",";
-    }
-    csv << "\n";
-
-    for (int n = 0; n < N; n++) {
-        int row_offset = n * D;
-        for (int d = 0; d < D; d++) {
-            csv << Y[row_offset + d] << ",";
-        }
-        csv << "\n";
-    }
-
-    csv.close();
 }
 
 }  // namespace TSNE
