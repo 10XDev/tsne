@@ -83,7 +83,7 @@ private:
     point_t center_of_mass;
 
     // Children
-    std::array<std::unique_ptr<SPTreeNode<NDims>>, no_children> children;
+    std::unique_ptr<std::array<SPTreeNode<NDims>, no_children>> children;
 
     // Disallow copy
     SPTreeNode(const SPTreeNode&) = delete;

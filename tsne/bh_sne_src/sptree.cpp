@@ -154,13 +154,14 @@ bool SPTreeNode<NDims>::insert(unsigned int new_index, const double* data, vecto
                 cum_size--;
                 return true;
             }
-        }       // Otherwise, we need to subdivide the current cell
+        }
+        // We need to subdivide the current cell
         subdivide(data, widths, depth);
     }
 
     // Find out where the point can be inserted
     auto c = which_child(point);
-    return children[c]->insert(new_index, data, widths, depth+1);
+    return (*children)[c].insert(new_index, data, widths, depth+1);
 }
 
 // Create four children which fully divide this cell into four quads of equal area
@@ -180,9 +181,10 @@ void SPTreeNode<NDims>::subdivide(const double* data, vector<point_t>* widths, t
     const point_t& new_width = (*widths)[depth+1];
 
     // Create new children
+    children.reset(new array<SPTreeNode, no_children>());
+    auto& chi = (*children);
     for(unsigned int i = 0; i < no_children; i++) {
-        children[i].reset(new SPTreeNode());
-        Cell<NDims>& new_corner = children[i]->boundary;
+        Cell<NDims>& new_corner = chi[i].boundary;
         for(unsigned int d = 0; d < NDims; d++) {
             if((i >> d)%2 == 1)
                 new_corner.setCorner(d, boundary.getCorner(d) - new_width[d]);
@@ -194,7 +196,7 @@ void SPTreeNode<NDims>::subdivide(const double* data, vector<point_t>* widths, t
     // Move existing points to correct children
     for(unsigned int i = 0; i < QT_NODE_CAPACITY; i++) {
         auto c = which_child(data+index[i]*NDims);
-        children[c]->insert(index[i], data, widths, depth+1);
+        chi[c].insert(index[i], data, widths, depth+1);
     }
 }
 
@@ -208,8 +210,8 @@ bool SPTreeNode<NDims>::isCorrect(const double* data,
         }
     } else {
         ++width;
-        for(const auto& child : children) {
-            if (!child->isCorrect(data, width)) {
+        for(const auto& child : *children) {
+            if (!child.isCorrect(data, width)) {
                 return false;
             }
         }
@@ -228,8 +230,8 @@ unsigned int SPTreeNode<NDims>::getAllIndices(unsigned int* indices, unsigned in
         loc += cum_size;
     } else {
         // Gather indices in children
-        for(const auto& child : children)
-            loc = child->getAllIndices(indices, loc);
+        for(const auto& child : *children)
+            loc = child.getAllIndices(indices, loc);
     }
     return loc;
 }
@@ -238,7 +240,7 @@ template<int NDims>
 unsigned int SPTreeNode<NDims>::getDepth() const {
     if(is_leaf()) return 1;
     unsigned int depth = 0;
-    for(const auto& child : children) depth = max(depth, child->getDepth());
+    for(const auto& child : *children) depth = max(depth, child.getDepth());
     return 1u + depth;
 }
 
@@ -281,6 +283,7 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         for(size_t d = 0; d < NDims; ++d) {
             neg_f[d] += mult * diff[d];
         }
+        /*
     } else if (QT_NODE_CAPACITY > 1 && cum_size <= QT_NODE_CAPACITY) {
         // Need to compute forces on a per-point basis.
         auto data = data_point - point_index*NDims;
@@ -299,13 +302,13 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
             for(size_t d = 0; d < NDims; ++d) {
                 neg_f[d] += mult * diff[d];
             }
-        }
+        } */
     } else {
 
         // Recursively apply Barnes-Hut to children
         max_width_squared /= 4.0;
-        for(unsigned int i = 0; i < no_children; i++)
-            children[i]->computeNonEdgeForces(point_index, data_point,
+        for(const auto& child : *children)
+            child.computeNonEdgeForces(point_index, data_point,
                     theta, neg_f, sum_Q, max_width_squared);
     }
 }
@@ -333,7 +336,7 @@ void SPTreeNode<NDims>::print(const double* data) const
         fprintf(stderr,"Intersection node with center-of-mass = [");
         for(const auto& cm : center_of_mass) fprintf(stderr,"%f, ", cm);
         fprintf(stderr,"]; children are:\n");
-        for(int i = 0; i < no_children; i++) children[i]->print(data);
+        for(const auto& child : *children) child.print(data);
     }
 }
 
