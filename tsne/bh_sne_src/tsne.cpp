@@ -92,11 +92,16 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     }
 
     // Determine whether we are using an exact algorithm
-    if(N - 1 < 3 * perplexity) { fprintf(stderr,"Perplexity too large for the number of data points!\n"); exit(1); }
-    fprintf(stderr,"Using no_dims = %d, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
+    if(N - 1 < 3 * perplexity) {
+        fprintf(stderr,"Perplexity too large for the number of data points!\n");
+        exit(1);
+    }
+    fprintf(stderr,"Using D = %d, no_dims = %d, perplexity = %f, and theta = %f\n",
+            D, no_dims, perplexity, theta);
     bool exact = (theta == .0) ? true : false;
 
-    fprintf(stderr,"Using max_iter = %d, stop_lying_iter = %d, mom_switch_iter = %d\n", max_iter, stop_lying_iter, mom_switch_iter);
+    fprintf(stderr,"Using max_iter = %d, stop_lying_iter = %d, mom_switch_iter = %d\n",
+            max_iter, stop_lying_iter, mom_switch_iter);
 
     // Set learning parameters
     float total_time = .0;
@@ -117,6 +122,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     for(int i = 0; i < N * D; i++) {
         if(fabs(X[i]) > max_X) max_X = fabs(X[i]);
     }
+    fprintf(stderr,"max deviation from mean == %f\n", max_X);
     for(int i = 0; i < N * D; i++) X[i] /= max_X;
 
     // Compute input similarities for exact t-SNE
@@ -125,8 +131,8 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     if(exact) {
 
         // Compute similarities
-        fprintf(stderr,"Exact?");
         P.resize(N * N);
+        fprintf(stderr,"Computing exact perplexity...\n");
         computeGaussianPerplexity(X, N, D, P.data(), perplexity);
 
         // Symmetrize input similarities
@@ -149,6 +155,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     // Compute input similarities for approximate t-SNE
     else {
 
+        fprintf(stderr,"Computing approximate perplexity...\n");
         // Compute asymmetric pairwise input similarities
         computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity, (int) (3 * perplexity));
 
@@ -642,7 +649,7 @@ void computeSquaredEuclideanDistance(const double* X, int N, int D, double* DD) 
 void zeroMean(double* X, int N, int D) {
 
 	// Compute data mean
-	vector<double> mean(0);
+	vector<double> mean(D, 0);
     int nD = 0;
 	for(int n = 0; n < N; n++) {
 		for(int d = 0; d < D; d++) {

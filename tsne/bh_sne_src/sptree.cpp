@@ -43,6 +43,7 @@ using std::max_element;
 using std::unique_ptr;
 using std::vector;
 
+namespace TSNE {
 namespace _sptree_internal {
 
 template<int NDims>
@@ -77,13 +78,13 @@ bool Cell<NDims>::containsPoint(const double* point, const typename Cell<NDims>:
 // Constructor for SPTreeNode.
 template<int NDims>
 SPTreeNode<NDims>::SPTreeNode(const typename SPTreeNode<NDims>::point_t& inp_corner) :
-    boundary(inp_corner), size(0), cum_size(0) {
+    boundary(inp_corner), cum_size(0) {
     center_of_mass.fill(0.0);
 }
 // Constructor for SPTreeNode.
 template<int NDims>
 SPTreeNode<NDims>::SPTreeNode() :
-    size(0), cum_size(0) {
+    cum_size(0) {
     center_of_mass.fill(0.0);
 }
 
@@ -95,7 +96,20 @@ void SPTreeNode<NDims>::setCorner(const typename SPTreeNode<NDims>::point_t& inp
 
 template <int NDims>
 bool SPTreeNode<NDims>::is_leaf() const {
-    return NDims == 0 || children[0].get() == nullptr;
+    return NDims == 0 || cum_size <= QT_NODE_CAPACITY;
+}
+
+template<int NDims>
+unsigned int SPTreeNode<NDims>::which_child(const double* point) const {
+    unsigned int div = 1;
+    unsigned int i = 0;
+    for (int d = 0; d < NDims; d++) {
+        if (boundary.getCorner(d) > point[d]) {
+            i |= div;
+        }
+        div *= 2;
+    }
+    return i;
 }
 
 template<int NDims>
@@ -107,46 +121,47 @@ bool SPTreeNode<NDims>::insert(unsigned int new_index, const double* data, vecto
         return false;
 
     // Online update of cumulative size and center-of-mass
-    cum_size++;
-    double mult1 = (double) (cum_size - 1) / (double) cum_size;
-    double mult2 = 1.0 / (double) cum_size;
+    unsigned int size = cum_size++;
+    if (size != 0) {
+        double mult2 = 1.0 / (double) cum_size;
+        double mult1 = (double) (size) * mult2;
 
-    for(unsigned int d = 0; d < NDims; d++) {
-      center_of_mass[d] = center_of_mass[d] * mult1 + mult2 * point[d];
+        for(unsigned int d = 0; d < NDims; d++) {
+          center_of_mass[d] = center_of_mass[d] * mult1 + mult2 * point[d];
+        }
+    } else {
+        for(unsigned int d = 0; d < NDims; d++) {
+          center_of_mass[d] = point[d];
+        }
     }
 
     // If there is space in this quad tree and it is a leaf, add the object here
-    if(size < QT_NODE_CAPACITY && is_leaf()) {
+    if(size < QT_NODE_CAPACITY) {
         index[size] = new_index;
-        size++;
         return true;
+    } else if (size == QT_NODE_CAPACITY) {
+         // Don't add duplicates for now (this is not very nice)
+        for(unsigned int n = 0; n < size; n++) {
+            if (__builtin_expect(index[n] == new_index, 0)) {
+                cum_size--;
+                return true;
+            }
+            bool duplicate = true;
+            for(unsigned int d = 0; d < NDims; d++) {
+                if(__builtin_expect(point[d] != data[index[n] * NDims + d], 1)) { duplicate = false; break; }
+            }
+            if (__builtin_expect(duplicate, 0)) {
+                cum_size--;
+                return true;
+            }
+        }       // Otherwise, we need to subdivide the current cell
+        subdivide(data, widths, depth);
     }
-
-    // Don't add duplicates for now (this is not very nice)
-    for(unsigned int n = 0; n < size; n++) {
-        bool duplicate = true;
-        for(unsigned int d = 0; d < NDims; d++) {
-            if(point[d] != data[index[n] * NDims + d]) { duplicate = false; break; }
-        }
-        if (duplicate) {
-            return true;
-        }
-    }
-
-    // Otherwise, we need to subdivide the current cell
-    if(is_leaf()) subdivide(data, widths, depth);
 
     // Find out where the point can be inserted
-    for(auto& child : children) {
-        if(child->insert(new_index, data, widths, depth+1)) {
-            return true;
-        }
-    }
-
-    // Otherwise, the point cannot be inserted (this should never happen)
-    return false;
+    auto c = which_child(point);
+    return children[c]->insert(new_index, data, widths, depth+1);
 }
-
 
 // Create four children which fully divide this cell into four quads of equal area
 template<int NDims>
@@ -166,39 +181,32 @@ void SPTreeNode<NDims>::subdivide(const double* data, vector<point_t>* widths, t
 
     // Create new children
     for(unsigned int i = 0; i < no_children; i++) {
-        unsigned int div = 1;
         children[i].reset(new SPTreeNode());
         Cell<NDims>& new_corner = children[i]->boundary;
         for(unsigned int d = 0; d < NDims; d++) {
-            if((i / div) % 2 == 1)
+            if((i >> d)%2 == 1)
                 new_corner.setCorner(d, boundary.getCorner(d) - new_width[d]);
             else
                 new_corner.setCorner(d, boundary.getCorner(d) + new_width[d]);
-            div *= 2;
         }
     }
 
     // Move existing points to correct children
-    for(unsigned int i = 0; i < size; i++) {
-        for (auto& child : children) {
-            if (child->insert(index[i], data, widths, depth+1)) {
-                break;
-            }
-        }
+    for(unsigned int i = 0; i < QT_NODE_CAPACITY; i++) {
+        auto c = which_child(data+index[i]*NDims);
+        children[c]->insert(index[i], data, widths, depth+1);
     }
-
-    // Empty parent node
-    size = 0;
 }
 
 template<int NDims>
 bool SPTreeNode<NDims>::isCorrect(const double* data,
                                   typename vector<point_t>::const_iterator width) const {
-    for(unsigned int n = 0; n < size; n++) {
-        const double* point = data + index[n] * NDims;
-        if(!boundary.containsPoint(point, *width)) return false;
-    }
-    if(!is_leaf()) {
+    if (is_leaf()) {
+        for(unsigned int n = 0; n < cum_size; n++) {
+            const double* point = data + index[n] * NDims;
+            if(!boundary.containsPoint(point, *width)) return false;
+        }
+    } else {
         ++width;
         for(const auto& child : children) {
             if (!child->isCorrect(data, width)) {
@@ -215,11 +223,11 @@ unsigned int SPTreeNode<NDims>::getAllIndices(unsigned int* indices, unsigned in
 {
 
     // Gather indices in current quadrant
-    for(unsigned int i = 0; i < size; i++) indices[loc + i] = index[i];
-    loc += size;
-
-    // Gather indices in children
-    if(!is_leaf()) {
+    if(is_leaf()) {
+        for(unsigned int i = 0; i < cum_size; i++) indices[loc + i] = index[i];
+        loc += cum_size;
+    } else {
+        // Gather indices in children
         for(const auto& child : children)
             loc = child->getAllIndices(indices, loc);
     }
@@ -243,9 +251,8 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
 
     // Make sure that we spend no time on empty nodes or self-interactions
     if(cum_size == 0 ||
-       (size == 1 &&
-        __builtin_expect(index[0] == point_index, 0) &&
-        is_leaf())) return;
+       (cum_size == 1 &&
+        __builtin_expect(index[0] == point_index, 0))) return;
 
     // Compute distance between point and center-of-mass
     double sqdist = .0;
@@ -258,8 +265,14 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
 
     // Check whether we can use this node as a "summary"
     // max_width / sqrt(sqdist) < theta
-    if(is_leaf() || max_width_squared < theta * theta * sqdist) {
-
+    if(cum_size == 1) {
+        sqdist = 1.0 / (1.0 + sqdist);
+        *sum_Q += sqdist;
+        double mult = sqdist*sqdist;
+        for(size_t d = 0; d < NDims; ++d) {
+            neg_f[d] += mult * diff[d];
+        }
+    } else if (max_width_squared < theta * theta * sqdist) {
         // Compute and add t-SNE force between point and current node
         sqdist = 1.0 / (1.0 + sqdist);
         double mult = cum_size * sqdist;
@@ -268,8 +281,26 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         for(size_t d = 0; d < NDims; ++d) {
             neg_f[d] += mult * diff[d];
         }
-    }
-    else {
+    } else if (QT_NODE_CAPACITY > 1 && cum_size <= QT_NODE_CAPACITY) {
+        // Need to compute forces on a per-point basis.
+        auto data = data_point - point_index*NDims;
+        for (int j = 0; j < cum_size; ++j) {
+            if (index[j] == point_index) {
+                continue;
+            }
+            auto pt = data+index[j]*NDims;
+            for(int i = 0; i < NDims; ++i) {
+                diff[i] = data_point[i] - pt[i];
+                sqdist += diff[i] * diff[i];
+            }
+            sqdist = 1.0 / (1.0 + sqdist);
+            *sum_Q += sqdist;
+            double mult = sqdist*sqdist;
+            for(size_t d = 0; d < NDims; ++d) {
+                neg_f[d] += mult * diff[d];
+            }
+        }
+    } else {
 
         // Recursively apply Barnes-Hut to children
         max_width_squared /= 4.0;
@@ -290,11 +321,11 @@ void SPTreeNode<NDims>::print(const double* data) const
 
     if(is_leaf()) {
         fprintf(stderr,"Leaf node; data = [");
-        for(int i = 0; i < size; i++) {
+        for(int i = 0; i < cum_size; i++) {
             const double* point = data + index[i] * NDims;
             for(int d = 0; d < NDims; d++) fprintf(stderr,"%f, ", point[d]);
             fprintf(stderr," (index = %d)", index[i]);
-            if(i < size - 1) fprintf(stderr,"\n");
+            if(i < cum_size - 1) fprintf(stderr,"\n");
             else fprintf(stderr,"]\n");
         }
     }
@@ -327,7 +358,7 @@ SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) : data(inp_data) {
 
     const double *elem = inp_data;
     for(unsigned int n = 0; n < N; ++n) {
-        for(unsigned int d = 0; d < NDims; ++d) {
+        for(int d = 0; d < NDims; ++d) {
             mean_Y[d] += elem[d];
             if(elem[d] < min_Y[d]) min_Y[d] = elem[d];
             if(elem[d] > max_Y[d]) max_Y[d] = elem[d];
@@ -397,10 +428,10 @@ void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, 
 
     // Loop over all edges in the graph
     unsigned int ind1 = 0;
-    double sqdist;
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
 
+            double sqdist;
             // Compute pairwise distance and Q-value
             sqdist = 1.0;
             unsigned int ind2 = col_P[i] * NDims;
@@ -431,3 +462,5 @@ void SPTree<NDims>::print() const {
 // declare templates explicitly
 template class SPTree<2>;
 template class SPTree<3>;
+
+}  // namespace TSNE

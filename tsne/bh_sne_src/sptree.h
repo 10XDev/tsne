@@ -38,6 +38,7 @@
 #include <memory>
 #include <vector>
 
+namespace TSNE {
 namespace _sptree_internal {
 
 template <int NDims=2>
@@ -68,20 +69,18 @@ public:
     enum { no_children = 2 * SPTreeNode<NDims-1>::no_children };
 
 private:
-
     // Fixed constants
     static constexpr unsigned int QT_NODE_CAPACITY = 1;
 
-    // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
-    Cell<NDims> boundary;
-
     // Properties of this node in the tree
-    unsigned int size;
     unsigned int cum_size;
 
     // Indices in this space-partitioning tree node, corresponding center-of-mass, and list of all children
-    point_t center_of_mass;
     std::array<unsigned int, QT_NODE_CAPACITY> index;
+
+    // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
+    Cell<NDims> boundary;
+    point_t center_of_mass;
 
     // Children
     std::array<std::unique_ptr<SPTreeNode<NDims>>, no_children> children;
@@ -90,6 +89,8 @@ private:
     SPTreeNode(const SPTreeNode&) = delete;
 
     void subdivide(const double* data, std::vector<point_t>* widths, typename std::vector<point_t>::size_type depth);
+    unsigned int which_child(const double* point) const;
+    void make_child(unsigned int i, const point_t& width);
 
     bool is_leaf() const;
 
@@ -154,5 +155,7 @@ private:
     // Disallow copy
     SPTree(const SPTree&) = delete;
 };
+
+}  // namespace TSNE
 
 #endif
