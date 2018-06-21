@@ -40,52 +40,53 @@
 #include <cfloat>     // for DBL_MAX
 #include <cmath>      // for sqrt
 #include <cstdlib>    // for malloc, free, rand, RAND_MAX
+#include <memory>     // for unique_ptr
 #include <queue>      // for priority_queue
 #include <vector>     // for vector
 
-class DataPoint
+namespace TSNE {
+
+class DataPoint final
 {
-    int _ind;
 
 public:
-    std::vector<double> _x;
-    DataPoint() : _ind(-1) {}
-    DataPoint(int D, int ind, const double* x) : _ind(ind), _x(x, x+D) {}
+    const double* _x;
+    DataPoint() = default;
+    DataPoint(const double* x) : _x(x) {}
     DataPoint(const DataPoint& other) = default;
-    int index() const { return _ind; }
-    int dimensionality() const { return (int)_x.size(); }
     double x(int d) const { return _x[d]; }
 };
 
-double euclidean_distance(const DataPoint &t1, const DataPoint &t2) {
-    double dd = .0;
-    const std::vector<double>& x1 = t1._x;
-    const std::vector<double>& x2 = t2._x;
-    double diff;
-    for(int d = 0; d < x1.size(); d++) {
-        diff = (x1[d] - x2[d]);
-        dd += diff * diff;
+class euclidean_distance final {
+    const int _D;
+  public:
+    euclidean_distance(int D) : _D(D) {}
+    euclidean_distance(euclidean_distance&&) = default;
+    euclidean_distance(const euclidean_distance&) = default;
+    double operator()(const DataPoint &t1, const DataPoint &t2) const {
+        double dd = .0;
+        const double * x1 = t1._x;
+        const double * x2 = t2._x;
+        double diff;
+        for(int d = 0; d < _D; d++) {
+            diff = (x1[d] - x2[d]);
+            dd += diff * diff;
+        }
+        return sqrt(dd);
     }
-    return sqrt(dd);
-}
+};
 
 
-template<typename T, double (*distance)( const T&, const T& )>
-class VpTree
+template<typename T, class Distance>
+class VpTree final
 {
+    VpTree(const VpTree<T,Distance>&) = delete;
 public:
     
-    // Default constructor
-    VpTree() : _root(0) {}
+    explicit VpTree(Distance&& distance) : distance(distance) {}
     
-    // Destructor
-    ~VpTree() {
-        delete _root;
-    }
-
     // Function to create a new VpTree from data
     void create(const std::vector<T>& items) {
-        delete _root;
         _items = items;
         _root = buildFromPoints(0, items.size());
     }
@@ -101,7 +102,7 @@ public:
         _tau = DBL_MAX;
         
         // Perform the search
-        search(_root, target, k, heap);
+        search(_root.get(), target, k, heap);
         
         // Gather final results
         results->clear(); distances->clear();
@@ -117,6 +118,7 @@ public:
     }
     
 private:
+    const Distance distance;
     std::vector<T> _items;
     double _tau;
     
@@ -125,17 +127,12 @@ private:
     {
         int index;              // index of point in node
         double threshold;       // radius(?)
-        Node* left;             // points closer by than threshold
-        Node* right;            // points farther away than threshold
+        std::unique_ptr<Node> left;   // points closer by than threshold
+        std::unique_ptr<Node> right;  // points farther away than threshold
         
-        Node() :
-        index(0), threshold(0.), left(0), right(0) {}
-        
-        ~Node() {               // destructor
-            delete left;
-            delete right;
-        }
-    }* _root;
+        Node() : index(0), threshold(0.) {}
+    };
+    std::unique_ptr<Node> _root;
     
     
     // An item on the intermediate result queue
@@ -153,21 +150,23 @@ private:
     struct DistanceComparator
     {
         const T& item;
-        DistanceComparator(const T& item) : item(item) {}
-        bool operator()(const T& a, const T& b) {
+        const Distance distance;
+        DistanceComparator(const T& item,
+                           const Distance distance) : item(item), distance(distance) {}
+        bool operator()(const T& a, const T& b) const {
             return distance(item, a) < distance(item, b);
         }
     };
     
     // Function that (recursively) fills the tree
-    Node* buildFromPoints( int lower, int upper )
+    std::unique_ptr<Node> buildFromPoints( int lower, int upper )
     {
         if (upper == lower) {     // indicates that we're done here!
-            return nullptr;
+            return std::unique_ptr<Node>();
         }
         
         // Lower index is center of current node
-        Node* node = new Node();
+        std::unique_ptr<Node> node(new Node());
         node->index = lower;
         
         if (upper - lower > 1) {      // if we did not arrive at leaf yet
@@ -181,7 +180,7 @@ private:
             std::nth_element(_items.begin() + lower + 1,
                              _items.begin() + median,
                              _items.begin() + upper,
-                             DistanceComparator(_items[lower]));
+                             DistanceComparator(_items[lower], distance));
             
             // Threshold of the new node will be the distance to the median
             node->threshold = distance(_items[lower], _items[median]);
@@ -219,24 +218,26 @@ private:
         // If the target lies within the radius of ball
         if(dist < node->threshold) {
             if(dist - _tau <= node->threshold) {         // if there can still be neighbors inside the ball, recursively search left child first
-                search(node->left, target, k, heap);
+                search(node->left.get(), target, k, heap);
             }
             
             if(dist + _tau >= node->threshold) {         // if there can still be neighbors outside the ball, recursively search right child
-                search(node->right, target, k, heap);
+                search(node->right.get(), target, k, heap);
             }
         
         // If the target lies outsize the radius of the ball
         } else {
             if(dist + _tau >= node->threshold) {         // if there can still be neighbors outside the ball, recursively search right child first
-                search(node->right, target, k, heap);
+                search(node->right.get(), target, k, heap);
             }
             
             if (dist - _tau <= node->threshold) {         // if there can still be neighbors inside the ball, recursively search left child
-                search(node->left, target, k, heap);
+                search(node->left.get(), target, k, heap);
             }
         }
     }
 };
+
+}  // namespace TSNE
             
 #endif
