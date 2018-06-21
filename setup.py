@@ -44,10 +44,10 @@ else:
 
     ext_modules = [Extension(name='bh_sne',
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
-                   include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
+                   include_dirs=[numpy.get_include(), 'tsne/bh_sne_src/'],
                    extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-std=c++11',
-                                       '-ffunction-sections', '-flto'],
-                   extra_link_args=['-Wl,--gc-sections', '-flto'],
+                                       '-ffunction-sections', '-flto', '-mtune=native'],
+                   extra_link_args=['-O3', '-Wl,--gc-sections', '-flto', '-mtune=native'],
                    language='c++')]
 
 ext_modules = cythonize(ext_modules)
