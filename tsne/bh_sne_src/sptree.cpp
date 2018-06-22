@@ -147,8 +147,9 @@ bool SPTreeNode<NDims>::insert(unsigned int new_index, const double* data, vecto
                 return true;
             }
             bool duplicate = true;
+            const double *dp = data+index[n]*NDims;
             for(unsigned int d = 0; d < NDims; d++) {
-                if(__builtin_expect(point[d] != data[index[n] * NDims + d], 1)) { duplicate = false; break; }
+                if(__builtin_expect(point[d] != dp[d], 1)) { duplicate = false; break; }
             }
             if (__builtin_expect(duplicate, 0)) {
                 cum_size--;
@@ -257,9 +258,9 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         __builtin_expect(index[0] == point_index, 0))) return;
 
     // Compute distance between point and center-of-mass
+    alignas(16) point_t diff;
     double sqdist = .0;
 
-    array<double, NDims> diff;
     for(int i = 0; i < NDims; ++i) {
         diff[i] = data_point[i] - center_of_mass[i];
         sqdist += diff[i] * diff[i];
@@ -283,26 +284,6 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         for(size_t d = 0; d < NDims; ++d) {
             neg_f[d] += mult * diff[d];
         }
-        /*
-    } else if (QT_NODE_CAPACITY > 1 && cum_size <= QT_NODE_CAPACITY) {
-        // Need to compute forces on a per-point basis.
-        auto data = data_point - point_index*NDims;
-        for (int j = 0; j < cum_size; ++j) {
-            if (index[j] == point_index) {
-                continue;
-            }
-            auto pt = data+index[j]*NDims;
-            for(int i = 0; i < NDims; ++i) {
-                diff[i] = data_point[i] - pt[i];
-                sqdist += diff[i] * diff[i];
-            }
-            sqdist = 1.0 / (1.0 + sqdist);
-            *sum_Q += sqdist;
-            double mult = sqdist*sqdist;
-            for(size_t d = 0; d < NDims; ++d) {
-                neg_f[d] += mult * diff[d];
-            }
-        } */
     } else {
 
         // Recursively apply Barnes-Hut to children
@@ -354,7 +335,7 @@ template<int NDims>
 SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) : data(inp_data) {
     // Compute mean, width, and height of current map (boundaries of SPTree)
     int nD = 0;
-    point_t mean_Y, min_Y, max_Y;
+    alignas(16) point_t mean_Y, min_Y, max_Y;
     mean_Y.fill(0.0);
     min_Y.fill(DBL_MAX);
     max_Y.fill(-DBL_MAX);
@@ -430,18 +411,18 @@ void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, 
 {
 
     // Loop over all edges in the graph
-    unsigned int ind1 = 0;
+    const double* data_1 = data;
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
 
             double sqdist;
             // Compute pairwise distance and Q-value
             sqdist = 1.0;
-            unsigned int ind2 = col_P[i] * NDims;
+            const double* data_2 = data + col_P[i] * NDims;
 
-            std::array<double, NDims> diffs;
+            alignas(16) point_t diffs;
             for(unsigned int d = 0; d < NDims; d++) {
-                diffs[d] = data[ind1 + d] - data[ind2 + d];
+                diffs[d] = data_1[d] - data_2[d];
                 sqdist += diffs[d] * diffs[d];
             }
 
@@ -449,10 +430,11 @@ void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, 
 
             // Sum positive force
             for(unsigned int d = 0; d < NDims; d++) {
-                pos_f[ind1 + d] += sqdist * diffs[d];
+                pos_f[d] += sqdist * diffs[d];
             }
         }
-        ind1 += NDims;
+        pos_f += NDims;
+        data_1 += NDims;
     }
 }
 

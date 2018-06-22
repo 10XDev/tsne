@@ -42,7 +42,7 @@ namespace TSNE {
 namespace _sptree_internal {
 
 template <int NDims=2>
-class Cell final {
+class alignas(16) Cell final {
  public:
     typedef std::array<double, NDims> point_t;
 
@@ -62,7 +62,7 @@ class Cell final {
 };
 
 template <int NDims>
-class SPTreeNode final {
+class alignas(16) SPTreeNode final {
 public:
 
     typedef typename Cell<NDims>::point_t point_t;
@@ -72,18 +72,18 @@ private:
     // Fixed constants
     static constexpr unsigned int QT_NODE_CAPACITY = 1;
 
+    // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
+    point_t center_of_mass;
+    Cell<NDims> boundary;
+
+    // Children
+    std::unique_ptr<std::array<SPTreeNode<NDims>, no_children>> children;
+
     // Properties of this node in the tree
     unsigned int cum_size;
 
     // Indices in this space-partitioning tree node, corresponding center-of-mass, and list of all children
     std::array<unsigned int, QT_NODE_CAPACITY> index;
-
-    // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
-    Cell<NDims> boundary;
-    point_t center_of_mass;
-
-    // Children
-    std::unique_ptr<std::array<SPTreeNode<NDims>, no_children>> children;
 
     // Disallow copy
     SPTreeNode(const SPTreeNode&) = delete;
@@ -115,8 +115,9 @@ public:
 };
 
 template <>
-struct SPTreeNode<0>
+class SPTreeNode<0>
 {
+ public:
     enum { 	no_children = 1 };
 };
 

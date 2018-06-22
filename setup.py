@@ -45,7 +45,7 @@ else:
     ext_modules = [Extension(name='bh_sne',
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                    include_dirs=[numpy.get_include(), 'tsne/bh_sne_src/'],
-                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-std=c++11',
+                   extra_compile_args=['-msse3', '-O3', '-fPIC', '-w', '-ffast-math', '-std=c++11',
                                        '-ffunction-sections', '-flto', '-mtune=native'],
                    extra_link_args=['-O3', '-Wl,--gc-sections', '-flto', '-mtune=native'],
                    language='c++')]
