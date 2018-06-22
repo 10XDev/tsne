@@ -248,7 +248,7 @@ unsigned int SPTreeNode<NDims>::getDepth() const {
 // Compute non-edge forces using Barnes-Hut algorithm
 template<int NDims>
 void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
-    const double* data_point, double theta, double neg_f[], double* sum_Q,
+    const double* data_point, double neg_f[], double* sum_Q,
     double max_width_squared) const
 {
 
@@ -275,7 +275,7 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         for(size_t d = 0; d < NDims; ++d) {
             neg_f[d] += mult * diff[d];
         }
-    } else if (max_width_squared < theta * theta * sqdist) {
+    } else if (max_width_squared < sqdist) {
         // Compute and add t-SNE force between point and current node
         sqdist = 1.0 / (1.0 + sqdist);
         double mult = cum_size * sqdist;
@@ -290,7 +290,7 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
         max_width_squared /= 4.0;
         for(const auto& child : *children)
             child.computeNonEdgeForces(point_index, data_point,
-                    theta, neg_f, sum_Q, max_width_squared);
+                    neg_f, sum_Q, max_width_squared);
     }
 }
 
@@ -401,8 +401,8 @@ unsigned int SPTree<NDims>::getDepth() const {
 // Compute non-edge forces using Barnes-Hut algorithm
 template<int NDims>
 void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q) const {
-    double max_width = maxWidth();
-    node.computeNonEdgeForces(point_index, data + point_index * NDims, theta, neg_f, sum_Q, max_width*max_width);
+    double max_width = maxWidth()/theta;
+    node.computeNonEdgeForces(point_index, data + point_index * NDims, neg_f, sum_Q, max_width*max_width);
 }
 
 // Computes edge forces

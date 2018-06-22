@@ -105,7 +105,6 @@ public:
 
     void computeNonEdgeForces(unsigned int point_index,
                               const double* data_point,
-                              double theta,
                               double neg_f[],
                               double* sum_Q,
                               double max_width_squared) const;
