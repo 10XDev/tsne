@@ -41,12 +41,14 @@
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
+#include <utility>
 #include <vector>
 
 #include "vptree.h"
 #include "sptree.h"
 
 using std::array;
+using std::move;
 using std::vector;
 
 namespace TSNE {
@@ -54,7 +56,7 @@ namespace {
 
 static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
 
-void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N);
+void symmetrizeMatrix(vector<unsigned int>* row_P, vector<unsigned int>* col_P, vector<double>* val_P, int N);
 template <int D>
 void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, const double* Y, int N, double* dC, double theta);
 template <int D>
@@ -67,7 +69,9 @@ void zeroMean(double* X, int N, int D);
 template <int D>
 void zeroMean(double* X, int N);
 void computeGaussianPerplexity(const double* X, int N, int D, double* P, double perplexity);
-void computeGaussianPerplexity(const double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
+void computeGaussianPerplexity(const double* X, int N, int D,
+                               vector<unsigned int>* _row_P, vector<unsigned int>* _col_P,
+                               vector<double>* _val_P, double perplexity, int K);
 template <int D>
 void computeSquaredEuclideanDistance(const double* X, int N, double* DD);
 void computeSquaredEuclideanDistance(const double* X, int N, int D, double* DD);
@@ -77,7 +81,7 @@ double randn();
 template <int no_dims>
 void run(double* X, int N, int D, double* Y, double perplexity, double theta, int rand_seed,
                bool skip_random_init, double *init, bool use_init,
-	           int max_iter, int stop_lying_iter, int mom_switch_iter
+               int max_iter, int stop_lying_iter, int mom_switch_iter
                ) {
 
     // Set random seed
@@ -122,12 +126,12 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     for(int i = 0; i < N * D; i++) {
         if(fabs(X[i]) > max_X) max_X = fabs(X[i]);
     }
-    fprintf(stderr,"max deviation from mean == %f\n", max_X);
     for(int i = 0; i < N * D; i++) X[i] /= max_X;
 
     // Compute input similarities for exact t-SNE
     vector<double> P;
-    unsigned int* row_P; unsigned int* col_P; double* val_P;
+    vector<unsigned int> row_P, col_P;
+    vector<double> val_P;
     if(exact) {
 
         // Compute similarities
@@ -174,24 +178,24 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
     // Initialize solution (randomly or with given coordinates)
     if (!use_init && !skip_random_init) {
       for(int i = 0; i < N * no_dims; i++) {
-	    Y[i] = randn() * .0001;
+        Y[i] = randn() * .0001;
       }
     } else if (use_init) {
       for(int i = 0; i < N * no_dims; i++) {
-	    Y[i] = init[i];
+        Y[i] = init[i];
       }
     }
 
-	// Perform main training loop
+    // Perform main training loop
     if(exact) fprintf(stderr,"Input similarities computed in %4.2f seconds!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC);
     else fprintf(stderr,"Input similarities computed in %4.2f seconds (sparsity = %f)!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC, (double) row_P[N] / ((double) N * (double) N));
     start = clock();
 
-	for(int iter = 0; iter < max_iter; iter++) {
+    for(int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
         if(exact) computeExactGradient<no_dims>(P.data(), Y, N, dY.data());
-        else computeGradient<no_dims>(P.data(), row_P, col_P, val_P, Y, N, dY.data(), theta);
+        else computeGradient<no_dims>(P.data(), row_P.data(), col_P.data(), val_P.data(), Y, N, dY.data(), theta);
 
         // Update gains
         for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -199,10 +203,10 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
 
         // Perform gradient update (with momentum and gains)
         for(int i = 0; i < N * no_dims; i++) uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-		for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
+        for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
 
         // Make solution zero-mean
-		zeroMean<no_dims>(Y, N);
+        zeroMean<no_dims>(Y, N);
 
         // Stop lying about the P-values after a while, and switch momentum
         if(iter == stop_lying_iter) {
@@ -216,24 +220,18 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta, in
             end = clock();
             double C = .0;
             if(exact) C = evaluateError<no_dims>(P.data(), Y, N);
-            else      C = evaluateError<no_dims>(row_P, col_P, val_P, Y, N, theta);  // doing approximate computation here!
+            else      C = evaluateError<no_dims>(row_P.data(), col_P.data(), val_P.data(), Y, N, theta);  // doing approximate computation here!
             if(iter == 0)
                 fprintf(stderr,"Iteration %d: error is %f\n", iter + 1, C);
             else {
                 total_time += (float) (end - start) / CLOCKS_PER_SEC;
                 fprintf(stderr,"Iteration %d: error is %f (50 iterations in %4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
             }
-			start = clock();
+            start = clock();
         }
     }
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
 
-    // Clean up memory
-    if(!exact) {
-        free(row_P); row_P = NULL;
-        free(col_P); col_P = NULL;
-        free(val_P); val_P = NULL;
-    }
     fprintf(stderr,"Fitting performed in %4.2f seconds.\n", total_time);
 }
 
@@ -263,8 +261,8 @@ void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P
 template <int D>
 void computeExactGradient(double* P, const double* Y, int N, double* dC) {
 
-	// Make sure the current gradient contains zeros
-	for(int i = 0; i < N * D; i++) dC[i] = 0.0;
+    // Make sure the current gradient contains zeros
+    for(int i = 0; i < N * D; i++) dC[i] = 0.0;
 
     // Compute the squared Euclidean distance matrix
     vector<double> DD(N * N);
@@ -275,7 +273,7 @@ void computeExactGradient(double* P, const double* Y, int N, double* dC) {
     double sum_Q = .0;
     int nN = 0;
     for(int n = 0; n < N; n++) {
-    	for(int m = 0; m < N; m++) {
+        for(int m = 0; m < N; m++) {
             if(n != m) {
                 Q[nN + m] = 1 / (1 + DD[nN + m]);
                 sum_Q += Q[nN + m];
@@ -284,12 +282,12 @@ void computeExactGradient(double* P, const double* Y, int N, double* dC) {
         nN += N;
     }
 
-	// Perform the computation of the gradient
+    // Perform the computation of the gradient
     nN = 0;
     int nD = 0;
-	for(int n = 0; n < N; n++) {
+    for(int n = 0; n < N; n++) {
         int mD = 0;
-    	for(int m = 0; m < N; m++) {
+        for(int m = 0; m < N; m++) {
             if(n != m) {
                 double mult = (P[nN + m] - (Q[nN + m] / sum_Q)) * Q[nN + m];
                 for(int d = 0; d < D; d++) {
@@ -297,10 +295,10 @@ void computeExactGradient(double* P, const double* Y, int N, double* dC) {
                 }
             }
             mD += D;
-		}
+        }
         nN += N;
         nD += D;
-	}
+    }
 }
 
 
@@ -317,7 +315,7 @@ double evaluateError(double* P, const double* Y, int N) {
     double sum_Q = DBL_MIN;
     vector<double> Q(N * N);
     for(int n = 0; n < N; n++) {
-    	for(int m = 0; m < N; m++) {
+        for(int m = 0; m < N; m++) {
             if(n != m) {
                 Q[nN + m] = 1 / (1 + DD[nN + m]);
                 sum_Q += Q[nN + m];
@@ -334,7 +332,7 @@ double evaluateError(double* P, const double* Y, int N) {
       C += P[n] * log((P[n] + FLT_MIN) / (Q[n] + FLT_MIN));
     }
 
-	return C;
+    return C;
 }
 
 // Evaluate t-SNE cost function (approximately)
@@ -369,83 +367,85 @@ double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, co
 // Compute input similarities with a fixed perplexity
 void computeGaussianPerplexity(const double* X, int N, int D, double* P, double perplexity) {
 
-	// Compute the squared Euclidean distance matrix
-	vector<double> DD(N * N);
-	computeSquaredEuclideanDistance(X, N, D, DD.data());
+    // Compute the squared Euclidean distance matrix
+    vector<double> DD(N * N);
+    computeSquaredEuclideanDistance(X, N, D, DD.data());
 
-	// Compute the Gaussian kernel row by row
-    int nN = 0;
-	for(int n = 0; n < N; n++) {
+    // Compute the Gaussian kernel row by row
+    double *rP = P;
+    double *rD = DD.data();
+    for(int n = 0; n < N; n++) {
 
-		// Initialize some variables
-		bool found = false;
-		double beta = 1.0;
-		double min_beta = -DBL_MAX;
-		double max_beta =  DBL_MAX;
-		double tol = 1e-5;
+        // Initialize some variables
+        bool found = false;
+        double beta = 1.0;
+        double min_beta = -DBL_MAX;
+        double max_beta =  DBL_MAX;
+        double tol = 1e-5;
         double sum_P;
 
-		// Iterate until we found a good perplexity
-		int iter = 0;
-		while(!found && iter < 200) {
+        // Iterate until we found a good perplexity
+        int iter = 0;
+        while(!found && iter < 200) {
 
-			// Compute Gaussian kernel row
-			for(int m = 0; m < N; m++) P[nN + m] = exp(-beta * DD[nN + m]);
-			P[nN + n] = DBL_MIN;
+            // Compute Gaussian kernel row
+            for(int m = 0; m < N; m++) rP[m] = exp(-beta * rD[m]);
+            rP[n] = DBL_MIN;
 
-			// Compute entropy of current row
-			sum_P = DBL_MIN;
-			for(int m = 0; m < N; m++) sum_P += P[nN + m];
-			double H = 0.0;
-			for(int m = 0; m < N; m++) H += beta * (DD[nN + m] * P[nN + m]);
-			H = (H / sum_P) + log(sum_P);
+            // Compute entropy of current row
+            sum_P = DBL_MIN;
+            for(int m = 0; m < N; m++) sum_P += rP[m];
+            double H = 0.0;
+            for(int m = 0; m < N; m++) H += rD[m] * rP[m];
+            H *= beta;
+            H = (H / sum_P) + log(sum_P);
 
-			// Evaluate whether the entropy is within the tolerance level
-			double Hdiff = H - log(perplexity);
-			if(Hdiff < tol && -Hdiff < tol) {
-				found = true;
-			}
-			else {
-				if(Hdiff > 0) {
-					min_beta = beta;
-					if(max_beta == DBL_MAX || max_beta == -DBL_MAX)
-						beta *= 2.0;
-					else
-						beta = (beta + max_beta) / 2.0;
-				}
-				else {
-					max_beta = beta;
-					if(min_beta == -DBL_MAX || min_beta == DBL_MAX)
-						beta /= 2.0;
-					else
-						beta = (beta + min_beta) / 2.0;
-				}
-			}
+            // Evaluate whether the entropy is within the tolerance level
+            double Hdiff = H - log(perplexity);
+            if(Hdiff < tol && -Hdiff < tol) {
+                found = true;
+            }
+            else {
+                if(Hdiff > 0) {
+                    min_beta = beta;
+                    if(max_beta == DBL_MAX || max_beta == -DBL_MAX)
+                        beta *= 2.0;
+                    else
+                        beta = (beta + max_beta) / 2.0;
+                }
+                else {
+                    max_beta = beta;
+                    if(min_beta == -DBL_MAX || min_beta == DBL_MAX)
+                        beta /= 2.0;
+                    else
+                        beta = (beta + min_beta) / 2.0;
+                }
+            }
 
-			// Update iteration counter
-			iter++;
-		}
+            // Update iteration counter
+            iter++;
+        }
 
-		// Row normalize P
-		for(int m = 0; m < N; m++) P[nN + m] /= sum_P;
-        nN += N;
-	}
+        // Row normalize P
+        for(int m = 0; m < N; m++) rP[m] /= sum_P;
+        rP += N;
+        rD += N;
+    }
 }
 
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
-void computeGaussianPerplexity(const double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K) {
+void computeGaussianPerplexity(const double* X, int N, int D, vector<unsigned int>* _row_P, vector<unsigned int>* _col_P, vector<double>* _val_P, double perplexity, int K) {
 
     if(perplexity > K) fprintf(stderr,"Perplexity should be lower than K!\n");
 
     // Allocate the memory we need
-    *_row_P = (unsigned int*)    malloc((N + 1) * sizeof(unsigned int));
-    *_col_P = (unsigned int*)    calloc(N * K, sizeof(unsigned int));
-    *_val_P = (double*) calloc(N * K, sizeof(double));
-    if(*_row_P == NULL || *_col_P == NULL || *_val_P == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
-    unsigned int* row_P = *_row_P;
-    unsigned int* col_P = *_col_P;
-    double* val_P = *_val_P;
+    _row_P->resize(N+1);
+    _col_P->resize(N*K,0);
+    _val_P->resize(N*K,0);
+    vector<unsigned int>& row_P = *_row_P;
+    vector<unsigned int>& col_P = *_col_P;
+    vector<double>& val_P = *_val_P;
     vector<double> cur_P(N - 1);
     row_P[0] = 0;
     for(int n = 0; n < N; n++) row_P[n + 1] = row_P[n] + (unsigned int) K;
@@ -527,12 +527,12 @@ void computeGaussianPerplexity(const double* X, int N, int D, unsigned int** _ro
 
 
 // Symmetrizes a sparse matrix
-void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, int N) {
+void symmetrizeMatrix(vector<unsigned int>* _row_P, vector<unsigned int>* _col_P, vector<double>* _val_P, int N) {
 
     // Get sparse matrix
-    unsigned int* row_P = *_row_P;
-    unsigned int* col_P = *_col_P;
-    double* val_P = *_val_P;
+    vector<unsigned int>& row_P = *_row_P;
+    vector<unsigned int>& col_P = *_col_P;
+    vector<double>& val_P = *_val_P;
 
     // Count number of elements and row counts of symmetric matrix
     vector<int> row_counts(N);
@@ -555,10 +555,9 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _va
     for(int n = 0; n < N; n++) no_elem += row_counts[n];
 
     // Allocate memory for symmetrized matrix
-    unsigned int* sym_row_P = (unsigned int*) malloc((N + 1) * sizeof(unsigned int));
-    unsigned int* sym_col_P = (unsigned int*) malloc(no_elem * sizeof(unsigned int));
-    double* sym_val_P = (double*) malloc(no_elem * sizeof(double));
-    if(sym_row_P == NULL || sym_col_P == NULL || sym_val_P == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
+    vector<unsigned int> sym_row_P(N + 1);
+    vector<unsigned int> sym_col_P(no_elem);
+    vector<double> sym_val_P(no_elem);
 
     // Construct new row indices for symmetric matrix
     sym_row_P[0] = 0;
@@ -603,9 +602,9 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _va
     for(int i = 0; i < no_elem; i++) sym_val_P[i] /= 2.0;
 
     // Return symmetrized matrices
-    free(*_row_P); *_row_P = sym_row_P;
-    free(*_col_P); *_col_P = sym_col_P;
-    free(*_val_P); *_val_P = sym_val_P;
+    *_row_P = move(sym_row_P);
+    *_col_P = move(sym_col_P);
+    *_val_P = move(sym_val_P);
 }
 
 // Compute squared Euclidean distance matrix
@@ -648,79 +647,78 @@ void computeSquaredEuclideanDistance(const double* X, int N, int D, double* DD) 
 // Makes data zero-mean
 void zeroMean(double* X, int N, int D) {
 
-	// Compute data mean
-	vector<double> mean(D, 0);
+    // Compute data mean
+    vector<double> mean(D, 0);
     int nD = 0;
-	for(int n = 0; n < N; n++) {
-		for(int d = 0; d < D; d++) {
-			mean[d] += X[nD + d];
-		}
+    for(int n = 0; n < N; n++) {
+        for(int d = 0; d < D; d++) {
+            mean[d] += X[nD + d];
+        }
         nD += D;
-	}
-	for(int d = 0; d < D; d++) {
-		mean[d] /= (double) N;
-	}
+    }
+    for(int d = 0; d < D; d++) {
+        mean[d] /= (double) N;
+    }
 
-	// Subtract data mean
+    // Subtract data mean
     nD = 0;
-	for(int n = 0; n < N; n++) {
-		for(int d = 0; d < D; d++) {
-			X[nD + d] -= mean[d];
-		}
+    for(int n = 0; n < N; n++) {
+        for(int d = 0; d < D; d++) {
+            X[nD + d] -= mean[d];
+        }
         nD += D;
-	}
+    }
 }
 
 // Makes data zero-mean
 template <int D>
 void zeroMean(double* X, int N) {
 
-	// Compute data mean
-	array<double, D> mean;
+    // Compute data mean
+    array<double, D> mean;
     mean.fill(0);
     int nD = 0;
-	for(int n = 0; n < N; n++) {
-		for(int d = 0; d < D; d++) {
-			mean[d] += X[nD + d];
-		}
+    for(int n = 0; n < N; n++) {
+        for(int d = 0; d < D; d++) {
+            mean[d] += X[nD + d];
+        }
         nD += D;
-	}
-	for(int d = 0; d < D; d++) {
-		mean[d] /= (double) N;
-	}
+    }
+    for(int d = 0; d < D; d++) {
+        mean[d] /= (double) N;
+    }
 
-	// Subtract data mean
+    // Subtract data mean
     nD = 0;
-	for(int n = 0; n < N; n++) {
-		for(int d = 0; d < D; d++) {
-			X[nD + d] -= mean[d];
-		}
+    for(int n = 0; n < N; n++) {
+        for(int d = 0; d < D; d++) {
+            X[nD + d] -= mean[d];
+        }
         nD += D;
-	}
+    }
 }
 
 
 // Generates a Gaussian random number
 double randn() {
-	double x, y, radius;
-	do {
-		x = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
-		y = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
-		radius = (x * x) + (y * y);
-	} while((radius >= 1.0) || (radius == 0.0));
-	radius = sqrt(-2 * log(radius) / radius);
-	x *= radius;
-	y *= radius;
-	return x;
+    double x, y, radius;
+    do {
+        x = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
+        y = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
+        radius = (x * x) + (y * y);
+    } while((radius >= 1.0) || (radius == 0.0));
+    radius = sqrt(-2 * log(radius) / radius);
+    x *= radius;
+    y *= radius;
+    return x;
 }
 
 }  // namespace
 
 // Perform t-SNE
 void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-               bool skip_random_init, double *init, bool use_init,
-	           int max_iter, int stop_lying_iter, int mom_switch_iter
-               ) {
+         bool skip_random_init, double *init, bool use_init,
+         int max_iter, int stop_lying_iter, int mom_switch_iter) {
     switch(no_dims) {
       case 2:
         run<2>(X, N, D, Y, perplexity, theta, rand_seed,

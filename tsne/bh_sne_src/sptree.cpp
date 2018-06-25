@@ -267,7 +267,6 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
     }
 
     // Check whether we can use this node as a "summary"
-    // max_width / sqrt(sqdist) < theta
     if(cum_size == 1) {
         sqdist = 1.0 / (1.0 + sqdist);
         *sum_Q += sqdist;
@@ -276,6 +275,7 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
             neg_f[d] += mult * diff[d];
         }
     } else if (max_width_squared < sqdist) {
+        // max_width / sqrt(sqdist) < theta
         // Compute and add t-SNE force between point and current node
         sqdist = 1.0 / (1.0 + sqdist);
         double mult = cum_size * sqdist;
@@ -285,7 +285,6 @@ void SPTreeNode<NDims>::computeNonEdgeForces(unsigned int point_index,
             neg_f[d] += mult * diff[d];
         }
     } else {
-
         // Recursively apply Barnes-Hut to children
         max_width_squared /= 4.0;
         for(const auto& child : *children)
