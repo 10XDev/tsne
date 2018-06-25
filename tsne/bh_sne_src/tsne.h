@@ -30,20 +30,18 @@
  *
  */
 
-
 #ifndef TSNE_H
 #define TSNE_H
 
 namespace TSNE {
 
 void run(double* X, int N, int D, double* Y, int no_dims, double perplexity,
-         double theta, int rand_seed,
-         bool skip_random_init, double *init, bool use_init, int max_iter=1000,
-         int stop_lying_iter=250, int mom_switch_iter=250
-	     );
+         double theta, int rand_seed, bool skip_random_init, double* init,
+         bool use_init, int max_iter = 1000, int stop_lying_iter = 250,
+         int mom_switch_iter = 250);
 bool load_data(const char* dat_file, double** data, int* n, int* d,
-               int* no_dims, double* theta, double* perplexity,
-               int* rand_seed, int* max_iter);
+               int* no_dims, double* theta, double* perplexity, int* rand_seed,
+               int* max_iter);
 void save_data(const char* res_file, double* data, int* landmarks,
                double* costs, int n, int d);
 void save_csv(const char* csv_file, double* Y, int N, int D);
