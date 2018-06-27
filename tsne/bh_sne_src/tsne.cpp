@@ -30,7 +30,6 @@
  *
  */
 
-
 #include "tsne.h"
 
 #include <array>
@@ -111,7 +110,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
     fprintf(stderr,
             "Using D = %d, no_dims = %d, perplexity = %f, and theta = %f\n", D,
             no_dims, perplexity, theta);
-    bool exact = (theta == .0) ? true : false;
+    const bool exact = __builtin_expect((theta == .0) ? true : false, 0);
 
     fprintf(stderr,
             "Using max_iter = %d, stop_lying_iter = %d, mom_switch_iter = %d\n",

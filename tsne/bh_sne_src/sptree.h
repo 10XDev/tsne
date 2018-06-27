@@ -30,7 +30,6 @@
  *
  */
 
-
 #ifndef SPTREE_H
 #define SPTREE_H
 
@@ -42,7 +41,7 @@ namespace TSNE {
 namespace _sptree_internal {
 
 template <int NDims = 2>
-class alignas(16) Cell final {
+class[[gnu::visibility("internal")]] alignas(16) Cell final {
  public:
   typedef std::array<double, NDims> point_t;
 
@@ -62,7 +61,7 @@ class alignas(16) Cell final {
 };
 
 template <int NDims>
-class alignas(16) SPTreeNode final {
+class[[gnu::visibility("internal")]] alignas(16) SPTreeNode final {
  public:
   typedef typename Cell<NDims>::point_t point_t;
   enum { no_children = 2 * SPTreeNode<NDims - 1>::no_children };
@@ -82,8 +81,8 @@ class alignas(16) SPTreeNode final {
   // Properties of this node in the tree
   unsigned int cum_size;
 
-  // Indices in this space-partitioning tree node, corresponding center-of-mass,
-  // and list of all children
+  // Indices in this space-partitioning tree node, corresponding
+  // center-of-mass, and list of all children
   std::array<unsigned int, QT_NODE_CAPACITY> index;
 
   // Disallow copy
@@ -105,15 +104,19 @@ class alignas(16) SPTreeNode final {
   bool insert(unsigned int new_index, const double* data,
               std::vector<point_t>* widths,
               typename std::vector<point_t>::size_type depth);
-  bool isCorrect(const double* data,
-                 typename std::vector<point_t>::const_iterator width) const;
+  void computeNonEdgeForces[[gnu::hot]](
+      unsigned int point_index, const double* data_point, double neg_f[],
+      double* sum_Q, double max_width_squared) const;
 
-  void computeNonEdgeForces(unsigned int point_index, const double* data_point,
-                            double neg_f[], double* sum_Q,
-                            double max_width_squared) const;
-  unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
-  unsigned int getDepth() const;
-  void print(const double* data) const;
+  // Methods used for debugging
+  bool isCorrect[[gnu::cold]](
+      const double* data, typename std::vector<point_t>::const_iterator width)
+      const;
+
+  unsigned int getAllIndices[[gnu::cold]](unsigned int* indices,
+                                          unsigned int loc) const;
+  unsigned int getDepth[[gnu::cold]]() const;
+  void print[[gnu::cold]](const double* data) const;
 };
 
 template <>
@@ -125,7 +128,7 @@ class SPTreeNode<0> {
 }  // namespace _sptree_internal
 
 template <int NDims = 2>
-class SPTree {
+class [[gnu::visibility("internal")]] SPTree {
  public:
   typedef typename _sptree_internal::SPTreeNode<NDims>::point_t point_t;
   enum { no_children = _sptree_internal::SPTreeNode<NDims>::no_children };
@@ -144,14 +147,16 @@ class SPTree {
  public:
   SPTree(const double* inp_data, unsigned int N);
 
-  bool isCorrect() const;
-  void getAllIndices(unsigned int* indices) const;
-  unsigned int getDepth() const;
-  void computeNonEdgeForces(unsigned int point_index, double theta,
-                            double neg_f[], double* sum_Q) const;
-  void computeEdgeForces(unsigned int* row_P, unsigned int* col_P,
-                         double* val_P, int N, double* pos_f) const;
-  void print() const;
+  void computeNonEdgeForces[[gnu::hot]](unsigned int point_index, double theta,
+                                        double neg_f[], double* sum_Q) const;
+  void computeEdgeForces[[gnu::hot]](unsigned int* row_P, unsigned int* col_P,
+                                     double* val_P, int N, double* pos_f) const;
+
+  // methods used for debugging.
+  bool isCorrect[[gnu::cold]]() const;
+  void getAllIndices[[gnu::cold]](unsigned int* indices) const;
+  unsigned int getDepth[[gnu::cold]]() const;
+  void print[[gnu::cold]]() const;
 
  private:
   void fill(unsigned int N);

@@ -34,9 +34,11 @@
 
 #include <algorithm>  // for max, max_element
 #include <cfloat>     // for DBL_MAX
+#include <cmath>
 #include <cstdio>     // for fprintf, stderr, size_t
 #include <memory>     // for unique_ptr
 
+using std::abs;
 using std::array;
 using std::max;
 using std::max_element;
@@ -69,9 +71,7 @@ template <int NDims>
 bool Cell<NDims>::containsPoint(
     const double* point, const typename Cell<NDims>::point_t& width) const {
     for (int d = 0; d < NDims; ++d) {
-        if (corner[d] - width[d] > point[d])
-            return false;
-        if (corner[d] + width[d] < point[d])
+        if (abs(corner[d] - point[d]) > width[d])
             return false;
     }
     return true;
