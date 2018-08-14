@@ -11,6 +11,7 @@ import os
 import platform
 import shutil
 
+from os import path
 from distutils.core import setup
 from setuptools import find_packages
 from distutils.extension import Extension
@@ -22,6 +23,8 @@ import numpy
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
+
+here = path.abspath(path.dirname(__file__))
 
 class CmakeBuildMixin():
     def cmake_build(self):
@@ -62,7 +65,6 @@ class CmakeBuildScripts(CmakeBuildMixin, build_scripts):
     def run(self):
         self.cmake_build()
         build_scripts.run(self)
-
 
 
 if sys.platform == 'darwin':
@@ -112,24 +114,30 @@ cmdclass = versioneer.get_cmdclass()
 cmdclass['build_ext'] = build_ext
 cmdclass['build_scripts'] = CmakeBuildScripts
 
-setup(name='bh-tsne',
-      version=versioneer.get_version(),
-      cmdclass=cmdclass,
-      author='Daniel Rapp',
-      author_email='rappdw@gmail.com',
-      url='https://github.com/rappdw/tsne.git',
-      description='TSNE implementations for python',
-      long_description='''
-This is based on the https://github.com/10XDev/tsne.git fork of L.J.P. van der Maaten BH-tSNE implementation.
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
-It has fixes to allow this to run in Python 3. More significantly, performance has been significantly
-increased with OpenMP parallelism (see: https://github.com/rappdw/tsne-perf-test.git)''',
-      license='Apache License Version 2.0, January 2004',
-      packages=find_packages(),
-      ext_modules=ext_modules,
-      scripts=['tsne/bh_sne_src/bhtsne.py'],
-      install_requires=[
-          'numpy',
-          'scipy'
-      ]
-      )
+setup(
+    name='tsne-hp',
+    version=versioneer.get_version(),
+    cmdclass=cmdclass,
+    author='Daniel Rapp',
+    author_email='rappdw@gmail.com',
+    url='https://github.com/rappdw/tsne.git',
+    description='High Performance TSNE implementations for python',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+
+    license='Apache License Version 2.0, January 2004',
+    packages=find_packages(),
+    ext_modules=ext_modules,
+    scripts=['tsne/bh_sne_src/bhtsne.py'],
+    install_requires=[
+        'numpy',
+        'scipy'
+    ],
+    setup_required=[
+        'Cython',
+        'numpy'
+    ]
+)
