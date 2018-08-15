@@ -16,19 +16,13 @@ This implementation performs significantly faster than scikit-learn's. If you ne
 
 A python ([cython](http://www.cython.org)) wrapper for [Barnes-Hut-SNE](http://homepage.tudelft.nl/19j49/t-SNE.html) aka fast-tsne.
 
-I basically took [osdf's code](https://github.com/osdf/py_bh_tsne) and made it pip compliant.
-
-## Requirements
-
-* [numpy](numpy.scipy.org) > =1.7.1
-* [scipy](http://www.scipy.org/) >= 0.12.0
-* [cython](cython.org) >= 0.19.1
-* [cblas](http://www.netlib.org/blas/) or [openblas](https://github.com/xianyi/OpenBLAS). Tested version is v0.2.5 and v0.2.6 (not necessary for OSX).
-* [OpenMp](http://www.openmp.org/)
+We branched 10XDev's implementation and openmp enabled the code.
 
 ## Installation
 
 ### Pip
+
+This library has been added to pypi as tsne-mp
 You can install the package from the Github repository:
 
 ```
