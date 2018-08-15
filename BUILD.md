@@ -1,7 +1,7 @@
 # Building & Distributing tsne-hp
-tsne-hp is a binary only distribution. While we are working on converting this library to 
-travis-ci, currently we are using a docker based build for linux and platform native build for
-OSX and Windows.
+tsne-mp is a binary only distribution. It is somewhat complicated to build. Because of that, we've created
+a set of build scripts (in bin directory) as well as docker containers to capture all requirements for building
+and for producing reproducable builds.
 
 ## Build Prerequisites
 
@@ -14,9 +14,15 @@ OSX and Windows.
 
 ## Linux
 
-Run `bin/build-linux.sh`
+Run `bin/build-linux.sh`. This will produce manylinux wheels for python 3.5 - 3.7 (in wheelhouse directory)
 
 ## OSX
+
+See [this blog post](https://iscinumpy.gitlab.io/post/omp-on-high-sierra/)
+* `brew install libomp`
+* install pipenv
+* add necessary args to compile_args and link_args in setup.py for platform == 'darwin' (these have been added to setup.py)
+* Run `bin/build-osx.sh`. This will produce osx wheels for python 3.5 - 3.7 (in dist)
 
 ## Windows
 

@@ -20,31 +20,11 @@ We branched 10XDev's implementation and openmp enabled the code.
 
 ## Installation
 
-### Pip
-
 This library has been added to pypi as tsne-mp
-You can install the package from the Github repository:
 
 ```
-pip install git+https://github.com/rappdw/tsne.git
+pip install tsne-mp
 ```
-
-Or using docker (to build a wheel for linux):
-
-```
-$ bin/build-image jenkins
-$ bin/run-image jenkins
-$ (in container) python setup.py bdist_wheel
-
-# This will generate a wheel in your project's dist directory
-```
-### OSX
-
-First install gcc (for openmp support) via: `brew install gcc --without-multilib`. Then
-install [CMake](https://cmake.org/). Once that's in place you can run pip or setup.py 
-to build a wheel or install locally, e.g.
-* `export PATH="/Applications/CMake.app/Contents/bin/:$PATH"; export CC=/usr/local/bin/gcc-6; export CXX=/usr/local/bin/g++-6; python setup.py bdist_wheel`
-* `export PATH="/Applications/CMake.app/Contents/bin/:$PATH"; export CXX=/usr/local/bin/g++-6; export CC=/usr/local/bin/gcc-6; pip install -e .`
 
 ## Usage
 

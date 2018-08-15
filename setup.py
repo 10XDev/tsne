@@ -73,8 +73,8 @@ if __name__ == "__main__":
         if sys.platform == 'darwin':
             # OS X
             library_dirs = []
-            compile_args = ['-ffast-math', '-fopenmp', '-flto']
-            link_args = ['-Wl,-framework', '-Wl,Accelerate', '-lgomp']
+            compile_args = ['-Xpreprocessor', '-fopenmp', '-lomp' '-ffast-math', '-flto']
+            link_args = ['-Wl,-framework', '-Wl,Accelerate', '-lomp']
         else:
             # LINUX
             library_dirs = ['/usr/local/lib', '/usr/lib64/atlas']
