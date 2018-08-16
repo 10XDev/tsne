@@ -1,59 +1,32 @@
-Python-TSNE
-===========
+# Python-TSNE
 
-[![travis-ci](https://api.travis-ci.org/danielfrg/tsne.svg)](https://travis-ci.org/danielfrg/tsne)
+This is based on the [10XDev/tsne](https://github.com/10XDev/tsne.git) fork of L.J.P. van der Maaten BH-tSNE implementation.
 
-Python library containing T-SNE algorithms.
+It has fixes to allow this to run in Python 3 and performance has been significantly
+increased with OpenMP parallelism. (see: [tsne-perf-test](https://github.com/rappdw/tsne-perf-test.git))
 
-**Note:** [Scikit-learn v0.17](http://scikit-learn.org/stable/whats_new.html#version-0-17)
-includes TSNE algorithms and you should probably be using them instead of this.
+**Note:** While [Scikit-learn v0.17](http://scikit-learn.org/stable/whats_new.html#version-0-17)
+This implementation performs significantly faster than scikit-learn's. If you need speed, use this.
 
-Algorithms
-----------
+
+
+## Algorithms
 
 ### Barnes-Hut-SNE
 
 A python ([cython](http://www.cython.org)) wrapper for [Barnes-Hut-SNE](http://homepage.tudelft.nl/19j49/t-SNE.html) aka fast-tsne.
 
-I basically took [osdf's code](https://github.com/osdf/py_bh_tsne) and made it pip compliant.
+We branched 10XDev's implementation and openmp enabled the code.
 
-Requirements
-------------
+## Installation
 
-* [numpy](numpy.scipy.org) > =1.7.1
-* [scipy](http://www.scipy.org/) >= 0.12.0
-* [cython](cython.org) >= 0.19.1
-* [cblas](http://www.netlib.org/blas/) or [openblas](https://github.com/xianyi/OpenBLAS). Tested version is v0.2.5 and v0.2.6 (not necessary for OSX).
-
-[Anaconda](http://continuum.io/downloads) is recommended.
-
-Installation
-------------
-
-You can install the package from [PyPI](https://pypi.python.org/pypi):
+This library has been added to pypi as tsne-mp
 
 ```
-pip install tsne
+pip install tsne-mp
 ```
 
-Or directly from the Github repository:
-
-```
-pip install git+https://github.com/danielfrg/tsne.git
-```
-
-Or using docker (could be useful for testing):
-
-```
-$ docker build -t tsne .
-$ docker run -it -v /Users/drodriguez/workspace/tsne/:/tsne tsn
-
-# Inside Docker:
-$ python setup.py install
-```
-
-Usage
------
+## Usage
 
 Basic usage:
 
@@ -61,6 +34,8 @@ Basic usage:
 from tsne import bh_sne
 X_2d = bh_sne(X)
 ```
+Or, the wheels also contain an executable that can be used from the command-line as described
+in [the original project](https://github.com/lvdmaaten/bhtsne).
 
 ### Examples
 
@@ -68,7 +43,17 @@ X_2d = bh_sne(X)
 * [MNIST](http://nbviewer.ipython.org/urls/raw.github.com/danielfrg/py_tsne/master/examples/mnist.ipynb)
 * [word2vec on presidential speeches](https://github.com/prateekpg2455/U.S-Presidential-Speeches) via [@prateekpg2455](https://github.com/prateekpg2455)
 
-More Information
-----------------
+## More Information
 
 See *Barnes-Hut-SNE* (2013), L.J.P. van der Maaten. It is available on [arxiv](http://arxiv.org/abs/1301.3342).
+
+## Mulit-core
+see: [Python 3 - Multicore](http://python-notes.curiousefficiency.org/en/latest/python3/multicore_python.html)
+
+## Performance
+
+This fork of the orignal project has a number of performance improvements resulting in an order
+of magnitude performance improvement when running on multi-core systems. See 
+[tsne-pref-test](https://github.com/rappdw/tsne-perf-test) for performance comparisions of
+various implementaitons of tsne. 
+
