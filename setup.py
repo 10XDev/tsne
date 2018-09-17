@@ -46,16 +46,16 @@ else:
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                    include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
                    library_dirs=['/usr/local/lib', '/usr/lib64/atlas'],
-                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math'],
-                   extra_link_args=['-Wl,-Bstatic', '-lcblas', '-Wl,-Bdynamic'],
+                   extra_compile_args=['-msse3', '-O3', '-fPIC', '-w', '-ffast-math'],
+                   extra_link_args=['-Wl,-Bdynamic,--as-needed', '-lgcc_s'],
                    language='c++'),
 
                    Extension(name='bh_sne_3d',
                    sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne_3d.pyx'],
                    include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
                    library_dirs=['/usr/local/lib', '/usr/lib64/atlas'],
-                   extra_compile_args=['-msse2', '-O3', '-fPIC', '-w', '-ffast-math', '-DTSNE3D'],
-                   extra_link_args=['-Wl,-Bstatic', '-lcblas', '-Wl,-Bdynamic'],
+                   extra_compile_args=['-msse3', '-O3', '-fPIC', '-w', '-ffast-math', '-DTSNE3D'],
+                   extra_link_args=['-Wl,-Bdynamic,--as-needed', '-lgcc_s'],
                    language='c++')]
 
 ext_modules = cythonize(ext_modules)
