@@ -86,9 +86,9 @@ def bh_sne(data, pca_d=None, d=2, perplexity=30., theta=0.5,
     else:
         raise Exception("TSNE dimensions must be 2 or 3")
 
-    Y = tsne.run(X, N, X.shape[1], d, perplexity, theta, seed, init=init, use_init=use_init,
+    Y, final_cost = tsne.run(X, N, X.shape[1], d, perplexity, theta, seed, init=init, use_init=use_init,
                  max_iter=max_iter, stop_lying_iter=stop_lying_iter, mom_switch_iter=mom_switch_iter)
-    return Y
+    return Y, final_cost
 
 from ._version import get_versions
 __version__ = get_versions()['version']

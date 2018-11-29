@@ -53,9 +53,9 @@ using namespace std;
 #endif
 
 // Perform t-SNE
-void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void TSNE::run(double* X, int N, int D, double* Y, double* final_cost, int no_dims, double perplexity, double theta, int rand_seed,
                bool skip_random_init, double *init, bool use_init,
-	           int max_iter, int stop_lying_iter, int mom_switch_iter
+               int max_iter, int stop_lying_iter, int mom_switch_iter
                ) {
 
     // Set random seed
@@ -197,7 +197,11 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
                 total_time += (float) (end - start) / CLOCKS_PER_SEC;
                 fprintf(stderr,"Iteration %d: error is %f (50 iterations in %4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
             }
-			start = clock();
+            if(iter == max_iter - 1) {
+              *final_cost = C;
+            }
+            start = clock();
+
         }
     }
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
@@ -775,7 +779,7 @@ int main(int argc, char *argv[]) {
 		double* Y = (double*) malloc(N * no_dims * sizeof(double));
 		double* costs = (double*) calloc(N, sizeof(double));
         if(Y == NULL || costs == NULL) { fprintf(stderr,"Memory allocation failed!\n"); exit(1); }
-	    tsne->run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, NULL, false, max_iter);
+        tsne->run(data, N, D, Y, costs, no_dims, perplexity, theta, rand_seed, false, NULL, false, max_iter);
 
 		// Save the results
 		tsne->save_data(res_file_c, Y, landmarks, costs, N, no_dims);
