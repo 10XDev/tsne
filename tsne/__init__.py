@@ -88,6 +88,7 @@ def bh_sne(data, pca_d=None, d=2, perplexity=30., theta=0.5,
 
     Y, final_cost = tsne.run(X, N, X.shape[1], d, perplexity, theta, seed, init=init, use_init=use_init,
                  max_iter=max_iter, stop_lying_iter=stop_lying_iter, mom_switch_iter=mom_switch_iter)
+    final_cost = np.float64(final_cost)  # TODO not sure why we have to do this...
     return Y, final_cost
 
 from ._version import get_versions
