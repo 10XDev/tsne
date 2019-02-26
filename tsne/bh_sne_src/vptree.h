@@ -58,7 +58,7 @@ class DataPoint {
     _ind = -1;
     _x = NULL;
   }
-  DataPoint(int D, int ind, double* x) {
+  DataPoint(int D, int ind, const double* x) {
     _D = D;
     _ind = ind;
     _x = (double*)malloc(_D * sizeof(double));
@@ -119,17 +119,13 @@ template <typename T, double (*distance)(const T&, const T&)>
 class VpTree {
  public:
   // Default constructor
-  VpTree() : _root(0) {
-  }
+  VpTree() = default;
 
   // Destructor
-  ~VpTree() {
-    delete _root;
-  }
+  ~VpTree() = default;
 
   // Function to create a new VpTree from data
   void create(const std::vector<T>& items) {
-    delete _root;
     _items = items;
     _root = buildFromPoints(0, items.size());
   }
@@ -144,7 +140,7 @@ class VpTree {
     _tau = DBL_MAX;
 
     // Perform the search
-    search(_root, target, k, heap);
+    search(_root.get(), target, k, heap);
 
     // Gather final results
     results->clear();
@@ -167,19 +163,17 @@ class VpTree {
   // Single node of a VP tree (has a point and radius; left children are closer
   // to point than the radius)
   struct Node {
-    int index;         // index of point in node
-    double threshold;  // radius(?)
-    Node* left;        // points closer by than threshold
-    Node* right;       // points farther away than threshold
+    int index;                    // index of point in node
+    double threshold;             // radius(?)
+    std::unique_ptr<Node> left;   // points closer by than threshold
+    std::unique_ptr<Node> right;  // points farther away than threshold
 
-    Node() : index(0), threshold(0.), left(0), right(0) {
+    Node() : index(0), threshold(0.) {
     }
 
-    ~Node() {  // destructor
-      delete left;
-      delete right;
-    }
-  } * _root;
+    ~Node() = default;
+  };
+  std::unique_ptr<Node> _root;
 
   // An item on the intermediate result queue
   struct HeapItem {
@@ -203,13 +197,13 @@ class VpTree {
   };
 
   // Function that (recursively) fills the tree
-  Node* buildFromPoints(int lower, int upper) {
+  std::unique_ptr<Node> buildFromPoints(int lower, int upper) {
     if (upper == lower) {  // indicates that we're done here!
       return NULL;
     }
 
     // Lower index is center of current node
-    Node* node = new Node();
+    std::unique_ptr<Node> node = std::make_unique<Node>();
     node->index = lower;
 
     if (upper - lower > 1) {  // if we did not arrive at leaf yet
@@ -238,7 +232,7 @@ class VpTree {
   }
 
   // Helper function that searches the tree
-  void search(Node* node, const T& target, int k,
+  void search(const Node* node, const T& target, int k,
               std::priority_queue<HeapItem>& heap) {
     if (node == NULL)
       return;  // indicates that we're done here
@@ -262,7 +256,7 @@ class VpTree {
     }
 
     // Return if we arrived at a leaf
-    if (node->left == NULL && node->right == NULL) {
+    if (!node->left && !node->right) {
       return;
     }
 
@@ -271,13 +265,13 @@ class VpTree {
       if (dist - _tau <= node->threshold) {
         // if there can still be neighbors inside the
         // ball, recursively search left child first
-        search(node->left, target, k, heap);
+        search(node->left.get(), target, k, heap);
       }
 
       if (dist + _tau >= node->threshold) {
         // if there can still be neighbors outside the
         // ball, recursively search right child
-        search(node->right, target, k, heap);
+        search(node->right.get(), target, k, heap);
       }
 
       // If the target lies outsize the radius of the ball
@@ -285,13 +279,13 @@ class VpTree {
       if (dist + _tau >= node->threshold) {
         // if there can still be neighbors outside the
         // ball, recursively search right child first
-        search(node->right, target, k, heap);
+        search(node->right.get(), target, k, heap);
       }
 
       if (dist - _tau <= node->threshold) {
         // if there can still be neighbors inside the
         // ball, recursively search left child
-        search(node->left, target, k, heap);
+        search(node->left.get(), target, k, heap);
       }
     }
   }

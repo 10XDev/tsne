@@ -32,16 +32,15 @@
  */
 
 #include <cstdio>
-#include <cstdlib>
 #include <fstream>
+#include <vector>
 
 #include "tsne.h"
 
 using namespace std;
 
 // Function that loads data from a t-SNE file
-// Note: this function does a malloc that should be freed elsewhere
-bool load_data(const char* dat_file, double** data, int* n, int* d,
+bool load_data(const char* dat_file, vector<double>* data, int* n, int* d,
                int* no_dims, double* theta, double* perplexity, int* rand_seed,
                int* max_iter) {
   // Open file, read first 2 integers, allocate memory, and read the data
@@ -56,12 +55,8 @@ bool load_data(const char* dat_file, double** data, int* n, int* d,
   fread(perplexity, sizeof(double), 1, h);  // perplexity
   fread(no_dims, sizeof(int), 1, h);        // output dimensionality
   fread(max_iter, sizeof(int), 1, h);       // maximum number of iterations
-  *data = (double*)malloc(*d * *n * sizeof(double));
-  if (*data == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  fread(*data, sizeof(double), *n * *d, h);  // the data
+  data->resize(*d * *n);
+  fread(data->data(), sizeof(double), *n * *d, h);  // the data
   if (!feof(h))
     fread(rand_seed, sizeof(int), 1, h);  // random seed
   fclose(h);
@@ -70,8 +65,9 @@ bool load_data(const char* dat_file, double** data, int* n, int* d,
 }
 
 // Function that saves map to a t-SNE file
-void save_data(const char* res_file, double* data, int* landmarks,
-               double* costs, int n, int d) {
+void save_data(const char* res_file, const vector<double>& data,
+               const vector<int>& landmarks, const vector<double>& costs, int n,
+               int d) {
   // Open file, write first 2 integers and then the data
   FILE* h;
   if ((h = fopen(res_file, "w+b")) == nullptr) {
@@ -80,9 +76,9 @@ void save_data(const char* res_file, double* data, int* landmarks,
   }
   fwrite(&n, sizeof(int), 1, h);
   fwrite(&d, sizeof(int), 1, h);
-  fwrite(data, sizeof(double), n * d, h);
-  fwrite(landmarks, sizeof(int), n, h);
-  fwrite(costs, sizeof(double), n, h);
+  fwrite(data.data(), sizeof(double), data.size(), h);
+  fwrite(landmarks.data(), sizeof(int), landmarks.size(), h);
+  fwrite(costs.data(), sizeof(double), costs.size(), h);
   fclose(h);
   fprintf(stderr, "Wrote the %i x %i data matrix successfully!\n", n, d);
 }
@@ -121,7 +117,8 @@ int main(int argc, char* argv[]) {
 
   // Define some variables
   int origN, N, D, no_dims, max_iter;
-  double perplexity, theta, *data;
+  double perplexity, theta;
+  vector<double> data;
   int rand_seed = -1;
 
   // Read the parameters and the dataset
@@ -129,35 +126,17 @@ int main(int argc, char* argv[]) {
                 &rand_seed, &max_iter)) {
     // Make dummy landmarks
     N = origN;
-    int* landmarks = (int*)malloc(N * sizeof(int));
-    if (landmarks == nullptr) {
-      fprintf(stderr, "Memory allocation failed!\n");
-      exit(1);
-    }
+    vector<int> landmarks(N);
     for (int n = 0; n < N; n++)
       landmarks[n] = n;
 
     // Now fire up the SNE implementation
-    double* Y = (double*)malloc(N * no_dims * sizeof(double));
-    double* costs = (double*)calloc(N, sizeof(double));
-    if (Y == nullptr || costs == nullptr) {
-      fprintf(stderr, "Memory allocation failed!\n");
-      exit(1);
-    }
-    run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, nullptr,
-        false, max_iter);
+    vector<double> Y(N * no_dims);
+    vector<double> costs(N);
+    run(data.data(), N, D, Y.data(), no_dims, perplexity, theta, rand_seed,
+        false, nullptr, false, max_iter);
 
     // Save the results
     save_data(res_file_c, Y, landmarks, costs, N, no_dims);
-
-    // Clean up the memory
-    free(data);
-    data = nullptr;
-    free(Y);
-    Y = nullptr;
-    free(costs);
-    costs = nullptr;
-    free(landmarks);
-    landmarks = nullptr;
   }
 }

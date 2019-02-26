@@ -35,10 +35,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <array>
 
 #include "sptree.h"
 
 #pragma GCC visibility push(hidden)
+
+using std::array;
 
 // Constructs cell
 template <int NDims>
@@ -95,14 +98,12 @@ template <int NDims>
 SPTree<NDims>::SPTree(double* inp_data, unsigned int N) {
   // Compute mean, width, and height of current map (boundaries of SPTree)
   int nD = 0;
-  double* mean_Y = (double*)calloc(NDims, sizeof(double));
-  double* min_Y = (double*)malloc(NDims * sizeof(double));
-  double* max_Y = (double*)malloc(NDims * sizeof(double));
-
-  for (unsigned int d = 0; d < NDims; d++) {
-    min_Y[d] = DBL_MAX;
-    max_Y[d] = -DBL_MAX;
-  }
+  array<double, NDims> mean_Y;
+  mean_Y.fill(0.0);
+  array<double, NDims> min_Y;
+  array<double, NDims> max_Y;
+  min_Y.fill(DBL_MAX);
+  max_Y.fill(-DBL_MAX);
 
   for (unsigned int n = 0; n < N; n++) {
     for (unsigned int d = 0; d < NDims; d++) {
@@ -119,17 +120,11 @@ SPTree<NDims>::SPTree(double* inp_data, unsigned int N) {
     mean_Y[d] /= (double)N;
 
   // Construct SPTree
-  double* width = (double*)malloc(NDims * sizeof(double));
+  array<double, NDims> width;
   for (int d = 0; d < NDims; d++)
     width[d] = fmax(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
-  init(NULL, inp_data, mean_Y, width);
+  init(NULL, inp_data, mean_Y.data(), width.data());
   fill(N);
-
-  // Clean up memory
-  free(mean_Y);
-  free(max_Y);
-  free(min_Y);
-  free(width);
 }
 
 // Constructor for SPTree with particular size and parent -- build the tree,
@@ -391,8 +386,10 @@ void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta,
 
 // Computes edge forces
 template <int NDims>
-void SPTree<NDims>::computeEdgeForces(unsigned int* row_P, unsigned int* col_P,
-                                      double* val_P, int N, double* pos_f) {
+void SPTree<NDims>::computeEdgeForces(const unsigned int* row_P,
+                                      const unsigned int* col_P,
+                                      const double* val_P, int N,
+                                      double* pos_f) {
   // Loop over all edges in the graph
   unsigned int ind1 = 0;
   unsigned int ind2 = 0;

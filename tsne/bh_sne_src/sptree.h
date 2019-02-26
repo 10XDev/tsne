@@ -106,8 +106,8 @@ class SPTree {
   unsigned int getDepth();
   void computeNonEdgeForces(unsigned int point_index, double theta,
                             double neg_f[], double* sum_Q);
-  void computeEdgeForces(unsigned int* row_P, unsigned int* col_P,
-                         double* val_P, int N, double* pos_f);
+  void computeEdgeForces(const unsigned int* row_P, const unsigned int* col_P,
+                         const double* val_P, int N, double* pos_f);
   void print();
 
  private:

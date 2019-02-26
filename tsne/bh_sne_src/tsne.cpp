@@ -38,6 +38,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <utility>
 #include <vector>
 
 #include "sptree.h"
@@ -46,7 +47,13 @@
 
 #pragma GCC visibility push(hidden)
 
+using std::abs;
 using std::array;
+using std::exp;
+using std::fprintf;
+using std::log;
+using std::move;
+using std::sqrt;
 using std::vector;
 
 namespace {
@@ -57,24 +64,34 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
          int max_iter, int stop_lying_iter, int mom_switch_iter);
 
 template <int NDIMS>
-void computeGradient(double* P, unsigned int* inp_row_P,
-                     unsigned int* inp_col_P, double* inp_val_P, double* Y,
-                     int N, double* dC, double theta);
-void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
-double evaluateError(double* P, double* Y, int N, int D);
+void computeGradient(const vector<unsigned int>& inp_row_P,
+                     const vector<unsigned int>& inp_col_P,
+                     const vector<double>& inp_val_P, double* Y, int N,
+                     vector<double>& dC, double theta);
+template <int D>
+void computeExactGradient(const vector<double>& P, double* Y, int N,
+                          double* dC);
+template <int D>
+double evaluateError(const vector<double>& P, double* Y, int N);
 template <int NDIMS>
-double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P,
-                     double* Y, int N, double theta);
+double evaluateError(const vector<unsigned int>& row_P,
+                     const vector<unsigned int>& col_P,
+                     const vector<double>& val_P, double* Y, int N,
+                     double theta);
 void zeroMean(double* X, int N, int D);
+template <int D>
+void zeroMean(double* X, int N);
 void computeGaussianPerplexity(double* X, int N, int D, double* P,
                                double perplexity);
-void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
-                               unsigned int** _col_P, double** _val_P,
-                               double perplexity, int K);
+void computeGaussianPerplexity(double* X, int N, int D,
+                               vector<unsigned int>* _row_P,
+                               vector<unsigned int>* _col_P,
+                               vector<double>* _val_P, double perplexity,
+                               int K);
 void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
 double randn();
-void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P,
-                      double** val_P, int N);
+void symmetrizeMatrix(vector<unsigned int>* row_P, vector<unsigned int>* col_P,
+                      vector<double>* val_P, int N);
 
 static inline double sign(double x) {
   return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0));
@@ -82,53 +99,41 @@ static inline double sign(double x) {
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
 template <int NDIMS>
-void computeGradient(double* P, unsigned int* inp_row_P,
-                     unsigned int* inp_col_P, double* inp_val_P, double* Y,
-                     int N, double* dC, double theta) {
+void computeGradient(const vector<unsigned int>& inp_row_P,
+                     const vector<unsigned int>& inp_col_P,
+                     const vector<double>& inp_val_P, double* Y, int N,
+                     vector<double>& dC, double theta) {
   // Construct space-partitioning tree on current map
-  SPTree<NDIMS>* tree = new SPTree<NDIMS>(Y, N);
+  SPTree<NDIMS> tree(Y, N);
 
   // Compute all terms required for t-SNE gradient
   double sum_Q = .0;
-  double* pos_f = (double*)calloc(N * NDIMS, sizeof(double));
-  double* neg_f = (double*)calloc(N * NDIMS, sizeof(double));
-  if (pos_f == nullptr || neg_f == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
+  vector<double> pos_f(N * NDIMS);
+  vector<double> neg_f(N * NDIMS);
+  tree.computeEdgeForces(inp_row_P.data(), inp_col_P.data(), inp_val_P.data(),
+                         N, pos_f.data());
   for (int n = 0; n < N; n++)
-    tree->computeNonEdgeForces(n, theta, neg_f + n * NDIMS, &sum_Q);
+    tree.computeNonEdgeForces(n, theta, neg_f.data() + n * NDIMS, &sum_Q);
 
   // Compute final t-SNE gradient
   for (int i = 0; i < N * NDIMS; i++) {
     dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
   }
-  free(pos_f);
-  free(neg_f);
-  delete tree;
 }
 
 // Compute gradient of the t-SNE cost function (exact)
-void computeExactGradient(double* P, double* Y, int N, int D, double* dC) {
+template <int D>
+void computeExactGradient(const vector<double>& P, double* Y, int N,
+                          vector<double>& dC) {
   // Make sure the current gradient contains zeros
-  for (int i = 0; i < N * D; i++)
-    dC[i] = 0.0;
+  dC.assign(N * D, 0.0);
 
   // Compute the squared Euclidean distance matrix
-  double* DD = (double*)malloc(N * N * sizeof(double));
-  if (DD == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  computeSquaredEuclideanDistance(Y, N, D, DD);
+  vector<double> DD(N * N);
+  computeSquaredEuclideanDistance(Y, N, D, DD.data());
 
   // Compute Q-matrix and normalization sum
-  double* Q = (double*)malloc(N * N * sizeof(double));
-  if (Q == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
+  vector<double> Q(N * N);
   double sum_Q = .0;
   int nN = 0;
   for (int n = 0; n < N; n++) {
@@ -158,24 +163,15 @@ void computeExactGradient(double* P, double* Y, int N, int D, double* dC) {
     nN += N;
     nD += D;
   }
-
-  // Free memory
-  free(DD);
-  DD = nullptr;
-  free(Q);
-  Q = nullptr;
 }
 
 // Evaluate t-SNE cost function (exactly)
-double evaluateError(double* P, double* Y, int N, int D) {
+template <int D>
+double evaluateError(const vector<double>& P, double* Y, int N) {
   // Compute the squared Euclidean distance matrix
-  double* DD = (double*)malloc(N * N * sizeof(double));
-  double* Q = (double*)malloc(N * N * sizeof(double));
-  if (DD == nullptr || Q == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  computeSquaredEuclideanDistance(Y, N, D, DD);
+  vector<double> DD(N * N);
+  vector<double> Q(N * N);
+  computeSquaredEuclideanDistance(Y, N, D, DD.data());
 
   // Compute Q-matrix and normalization sum
   int nN = 0;
@@ -198,17 +194,15 @@ double evaluateError(double* P, double* Y, int N, int D) {
   for (int n = 0; n < N * N; n++) {
     C += P[n] * log((P[n] + FLT_MIN) / (Q[n] + FLT_MIN));
   }
-
-  // Clean up memory
-  free(DD);
-  free(Q);
   return C;
 }
 
 // Evaluate t-SNE cost function (approximately)
 template <int NDIMS>
-double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P,
-                     double* Y, int N, double theta) {
+double evaluateError(const vector<unsigned int>& row_P,
+                     const vector<unsigned int>& col_P,
+                     const vector<double>& val_P, double* Y, int N,
+                     double theta) {
   // Get estimate of normalization term
   array<double, NDIMS> buff;
   buff.fill(0);
@@ -246,12 +240,8 @@ double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P,
 void computeGaussianPerplexity(double* X, int N, int D, double* P,
                                double perplexity) {
   // Compute the squared Euclidean distance matrix
-  double* DD = (double*)malloc(N * N * sizeof(double));
-  if (DD == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  computeSquaredEuclideanDistance(X, N, D, DD);
+  vector<double> DD(N * N);
+  computeSquaredEuclideanDistance(X, N, D, DD.data());
 
   // Compute the Gaussian kernel row by row
   int nN = 0;
@@ -310,47 +300,35 @@ void computeGaussianPerplexity(double* X, int N, int D, double* P,
       P[nN + m] /= sum_P;
     nN += N;
   }
-
-  // Clean up memory
-  free(DD);
-  DD = nullptr;
 }
 
-// Compute input similarities with a fixed perplexity using ball trees (this
-// function allocates memory another function should free)
-void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
-                               unsigned int** _col_P, double** _val_P,
-                               double perplexity, int K) {
+// Compute input similarities with a fixed perplexity using ball trees.
+void computeGaussianPerplexity(double* X, int N, int D,
+                               vector<unsigned int>* _row_P,
+                               vector<unsigned int>* _col_P,
+                               vector<double>* _val_P, double perplexity,
+                               int K) {
   if (perplexity > K)
     fprintf(stderr, "Perplexity should be lower than K!\n");
 
   // Allocate the memory we need
-  *_row_P = (unsigned int*)malloc((N + 1) * sizeof(unsigned int));
-  *_col_P = (unsigned int*)calloc(N * K, sizeof(unsigned int));
-  *_val_P = (double*)calloc(N * K, sizeof(double));
-  if (*_row_P == nullptr || *_col_P == nullptr || *_val_P == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  unsigned int* row_P = *_row_P;
-  unsigned int* col_P = *_col_P;
-  double* val_P = *_val_P;
-  double* cur_P = (double*)malloc((N - 1) * sizeof(double));
-  if (cur_P == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
+  _row_P->resize(N + 1);
+  _col_P->resize(N * K);
+  _val_P->resize(N * K);
+  vector<unsigned int>& row_P = *_row_P;
+  vector<unsigned int>& col_P = *_col_P;
+  vector<double>& val_P = *_val_P;
+  vector<double> cur_P(N - 1);
   row_P[0] = 0;
   for (int n = 0; n < N; n++)
     row_P[n + 1] = row_P[n] + (unsigned int)K;
 
   // Build ball tree on data set
-  VpTree<DataPoint, euclidean_distance>* tree =
-      new VpTree<DataPoint, euclidean_distance>();
+  VpTree<DataPoint, euclidean_distance> tree;
   vector<DataPoint> obj_X(N, DataPoint(D, -1, X));
   for (int n = 0; n < N; n++)
     obj_X[n] = DataPoint(D, n, X + n * D);
-  tree->create(obj_X);
+  tree.create(obj_X);
 
   // Loop over all points to find nearest neighbors
   fprintf(stderr, "Building tree...\n");
@@ -363,7 +341,7 @@ void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
     // Find nearest neighbors
     indices.clear();
     distances.clear();
-    tree->search(obj_X[n], K + 1, &indices, &distances);
+    tree.search(obj_X[n], K + 1, &indices, &distances);
 
     // Initialize some variables for binary search
     bool found = false;
@@ -421,27 +399,19 @@ void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
       val_P[row_P[n] + m] = cur_P[m];
     }
   }
-
-  // Clean up memory
-  obj_X.clear();
-  free(cur_P);
-  delete tree;
 }
 
 // Symmetrizes a sparse matrix
-void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P,
-                      double** _val_P, int N) {
+void symmetrizeMatrix(vector<unsigned int>* _row_P,
+                      vector<unsigned int>* _col_P, vector<double>* _val_P,
+                      int N) {
   // Get sparse matrix
-  unsigned int* row_P = *_row_P;
-  unsigned int* col_P = *_col_P;
-  double* val_P = *_val_P;
+  vector<unsigned int>& row_P = *_row_P;
+  vector<unsigned int>& col_P = *_col_P;
+  vector<double>& val_P = *_val_P;
 
   // Count number of elements and row counts of symmetric matrix
-  int* row_counts = (int*)calloc(N, sizeof(int));
-  if (row_counts == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
+  vector<int> row_counts(N);
   for (int n = 0; n < N; n++) {
     for (int i = row_P[n]; i < row_P[n + 1]; i++) {
       // Check whether element (col_P[i], n) is present
@@ -463,15 +433,9 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P,
     no_elem += row_counts[n];
 
   // Allocate memory for symmetrized matrix
-  unsigned int* sym_row_P =
-      (unsigned int*)malloc((N + 1) * sizeof(unsigned int));
-  unsigned int* sym_col_P =
-      (unsigned int*)malloc(no_elem * sizeof(unsigned int));
-  double* sym_val_P = (double*)malloc(no_elem * sizeof(double));
-  if (sym_row_P == nullptr || sym_col_P == nullptr || sym_val_P == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
+  vector<unsigned int> sym_row_P(N + 1);
+  vector<unsigned int> sym_col_P(no_elem);
+  vector<double> sym_val_P(no_elem);
 
   // Construct new row indices for symmetric matrix
   sym_row_P[0] = 0;
@@ -479,14 +443,10 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P,
     sym_row_P[n + 1] = sym_row_P[n] + (unsigned int)row_counts[n];
 
   // Fill the result matrix
-  int* offset = (int*)calloc(N, sizeof(int));
-  if (offset == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
+  vector<int> offset(N);
   for (int n = 0; n < N; n++) {
-    for (unsigned int i = row_P[n]; i < row_P[n + 1];
-         i++) {  // considering element(n, col_P[i])
+    for (unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
+      // considering element(n, col_P[i])
 
       // Check whether element (col_P[i], n) is present
       bool present = false;
@@ -525,18 +485,9 @@ void symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P,
     sym_val_P[i] /= 2.0;
 
   // Return symmetrized matrices
-  free(*_row_P);
-  *_row_P = sym_row_P;
-  free(*_col_P);
-  *_col_P = sym_col_P;
-  free(*_val_P);
-  *_val_P = sym_val_P;
-
-  // Free up some memery
-  free(offset);
-  offset = nullptr;
-  free(row_counts);
-  row_counts = nullptr;
+  *_row_P = move(sym_row_P);
+  *_col_P = move(sym_col_P);
+  *_val_P = move(sym_val_P);
 }
 
 // Compute squared Euclidean distance matrix
@@ -558,13 +509,11 @@ void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
 }
 
 // Makes data zero-mean
-void zeroMean(double* X, int N, int D) {
+template <int D>
+void zeroMean(double* X, int N) {
   // Compute data mean
-  double* mean = (double*)calloc(D, sizeof(double));
-  if (mean == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
+  array<double, D> mean;
+  mean.fill(0);
   int nD = 0;
   for (int n = 0; n < N; n++) {
     for (int d = 0; d < D; d++) {
@@ -584,8 +533,31 @@ void zeroMean(double* X, int N, int D) {
     }
     nD += D;
   }
-  free(mean);
-  mean = nullptr;
+}
+
+// Makes data zero-mean
+void zeroMean(double* X, int N, int D) {
+  // Compute data mean
+  vector<double> mean(D);
+  int nD = 0;
+  for (int n = 0; n < N; n++) {
+    for (int d = 0; d < D; d++) {
+      mean[d] += X[nD + d];
+    }
+    nD += D;
+  }
+  for (int d = 0; d < D; d++) {
+    mean[d] /= (double)N;
+  }
+
+  // Subtract data mean
+  nD = 0;
+  for (int n = 0; n < N; n++) {
+    for (int d = 0; d < D; d++) {
+      X[nD + d] -= mean[d];
+    }
+    nD += D;
+  }
 }
 
 // Generates a Gaussian random number
@@ -638,17 +610,9 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
   double eta = 200.0;
 
   // Allocate some memory
-  double* dY = (double*)malloc(N * NDIMS * sizeof(double));
-  double* uY = (double*)malloc(N * NDIMS * sizeof(double));
-  double* gains = (double*)malloc(N * NDIMS * sizeof(double));
-  if (dY == nullptr || uY == nullptr || gains == nullptr) {
-    fprintf(stderr, "Memory allocation failed!\n");
-    exit(1);
-  }
-  for (int i = 0; i < N * NDIMS; i++)
-    uY[i] = .0;
-  for (int i = 0; i < N * NDIMS; i++)
-    gains[i] = 1.0;
+  vector<double> dY(N * NDIMS);
+  vector<double> uY(N * NDIMS);
+  vector<double> gains(N * NDIMS, 1.0);
 
   // Normalize input data (to prevent numerical problems)
   fprintf(stderr, "Computing input similarities...\n");
@@ -656,26 +620,23 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
   zeroMean(X, N, D);
   double max_X = .0;
   for (int i = 0; i < N * D; i++) {
-    if (fabs(X[i]) > max_X)
-      max_X = fabs(X[i]);
+    auto ax = abs(X[i]);
+    if (ax > max_X)
+      max_X = ax;
   }
   for (int i = 0; i < N * D; i++)
     X[i] /= max_X;
 
   // Compute input similarities for exact t-SNE
-  double* P;
-  unsigned int* row_P;
-  unsigned int* col_P;
-  double* val_P;
+  vector<double> P;
+  vector<unsigned int> row_P;
+  vector<unsigned int> col_P;
+  vector<double> val_P;
   if (exact) {
     // Compute similarities
     fprintf(stderr, "Exact?");
-    P = (double*)malloc(N * N * sizeof(double));
-    if (P == nullptr) {
-      fprintf(stderr, "Memory allocation failed!\n");
-      exit(1);
-    }
-    computeGaussianPerplexity(X, N, D, P, perplexity);
+    P.resize(N * N);
+    computeGaussianPerplexity(X, N, D, P.data(), perplexity);
 
     // Symmetrize input similarities
     fprintf(stderr, "Symmetrizing...\n");
@@ -694,10 +655,9 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
       sum_P += P[i];
     for (int i = 0; i < N * N; i++)
       P[i] /= sum_P;
-  }
+  } else {
+    // Compute input similarities for approximate t-SNE
 
-  // Compute input similarities for approximate t-SNE
-  else {
     // Compute asymmetric pairwise input similarities
     computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity,
                               (int)(3 * perplexity));
@@ -749,9 +709,9 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
   for (int iter = 0; iter < max_iter; iter++) {
     // Compute (approximate) gradient
     if (exact)
-      computeExactGradient(P, Y, N, NDIMS, dY);
+      computeExactGradient<NDIMS>(P, Y, N, dY);
     else
-      computeGradient<NDIMS>(P, row_P, col_P, val_P, Y, N, dY, theta);
+      computeGradient<NDIMS>(row_P, col_P, val_P, Y, N, dY, theta);
 
     // Update gains
     for (int i = 0; i < N * NDIMS; i++)
@@ -768,7 +728,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
       Y[i] = Y[i] + uY[i];
 
     // Make solution zero-mean
-    zeroMean(Y, N, NDIMS);
+    zeroMean<NDIMS>(Y, N);
 
     // Stop lying about the P-values after a while, and switch momentum
     if (iter == stop_lying_iter) {
@@ -787,11 +747,12 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
     if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
       end = clock();
       double C = .0;
-      if (exact)
-        C = evaluateError(P, Y, N, NDIMS);
-      else
-        C = evaluateError<NDIMS>(row_P, col_P, val_P, Y, N,
-                                 theta);  // doing approximate computation here!
+      if (exact) {
+        C = evaluateError<NDIMS>(P, Y, N);
+      } else {
+        // doing approximate computation here!
+        C = evaluateError<NDIMS>(row_P, col_P, val_P, Y, N, theta);
+      }
       if (iter == 0)
         fprintf(stderr, "Iteration %d: error is %f\n", iter + 1, C);
       else {
@@ -806,20 +767,6 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
   end = clock();
   total_time += (float)(end - start) / CLOCKS_PER_SEC;
 
-  // Clean up memory
-  free(dY);
-  free(uY);
-  free(gains);
-  if (exact)
-    free(P);
-  else {
-    free(row_P);
-    row_P = nullptr;
-    free(col_P);
-    col_P = nullptr;
-    free(val_P);
-    val_P = nullptr;
-  }
   fprintf(stderr, "Fitting performed in %4.2f seconds.\n", total_time);
 }
 
