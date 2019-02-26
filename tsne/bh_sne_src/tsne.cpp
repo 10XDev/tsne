@@ -48,7 +48,7 @@
 using std::array;
 using std::vector;
 
-namespace TSNE {
+namespace {
 
 template <int NDIMS>
 void run(double* X, int N, int D, double* Y,
@@ -57,44 +57,6 @@ void run(double* X, int N, int D, double* Y,
          bool skip_random_init, double *init, bool use_init,
          int max_iter, int stop_lying_iter, int mom_switch_iter);
 
-}  // namespace TSNE
-
-
-extern "C" {
-
-void DLL_PUBLIC run(
-        double* X, int N, int D, double* Y,
-        int no_dims, double perplexity,
-        double theta, int rand_seed,
-        bool skip_random_init, double *init, bool use_init,
-        int max_iter, int stop_lying_iter, int mom_switch_iter) {
-  assert(no_dims == 2 || no_dims == 3);
-  switch (no_dims) {
-    case 2:
-      TSNE::run<2>(X, N, D, Y,
-                   perplexity,
-                   theta, rand_seed,
-                   skip_random_init, init, use_init,
-                   max_iter, stop_lying_iter, mom_switch_iter);
-      break;
-    case 3:
-      TSNE::run<3>(X, N, D, Y,
-                   perplexity,
-                   theta, rand_seed,
-                   skip_random_init, init, use_init,
-                   max_iter, stop_lying_iter, mom_switch_iter);
-      break;
-    default:
-      throw "invalid dimension";
-  }
-}
-
-}  // extern "C"
-
-
-namespace TSNE {
-
-namespace {
 template <int NDIMS>
 void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, double* dC, double theta);
 void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
@@ -576,8 +538,6 @@ double randn() {
 	return x;
 }
 
-}  // namespace
-
 // Perform t-SNE
 template <int NDIMS>
 void run(double* X, int N, int D, double* Y,
@@ -743,6 +703,37 @@ void run(double* X, int N, int D, double* Y,
     fprintf(stderr,"Fitting performed in %4.2f seconds.\n", total_time);
 }
 
-}  // namespace TSNE
+}  // namespace
+
+extern "C" {
+
+void DLL_PUBLIC run(
+        double* X, int N, int D, double* Y,
+        int no_dims, double perplexity,
+        double theta, int rand_seed,
+        bool skip_random_init, double *init, bool use_init,
+        int max_iter, int stop_lying_iter, int mom_switch_iter) {
+  assert(no_dims == 2 || no_dims == 3);
+  switch (no_dims) {
+    case 2:
+      run<2>(X, N, D, Y,
+             perplexity,
+             theta, rand_seed,
+             skip_random_init, init, use_init,
+             max_iter, stop_lying_iter, mom_switch_iter);
+      break;
+    case 3:
+      run<3>(X, N, D, Y,
+             perplexity,
+             theta, rand_seed,
+             skip_random_init, init, use_init,
+             max_iter, stop_lying_iter, mom_switch_iter);
+      break;
+    default:
+      throw "invalid dimension";
+  }
+}
+
+}  // extern "C"
 
 #pragma GCC visibility pop
