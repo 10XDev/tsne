@@ -34,31 +34,28 @@
 #ifndef TSNE_H
 #define TSNE_H
 
+#if defined _WIN32 || defined __CYGWIN__
+  #ifdef __GNUC__
+    #define DLL_PUBLIC __attribute__ ((dllexport))
+  #else
+    #define DLL_PUBLIC __declspec(dllexport)
+  #endif
+#else
+  #if __GNUC__ >= 4
+    #define DLL_PUBLIC __attribute__ ((visibility ("default")))
+  #else
+    #define DLL_PUBLIC
+  #endif
+#endif
 
-static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
+extern "C" {
 
-
-class TSNE
-{
-public:
-    void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-             bool skip_random_init, double *init, bool use_init, int max_iter=1000, int stop_lying_iter=250, int mom_switch_iter=250
-	     );
-    bool load_data(const char* dat_file, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
-    void save_data(const char* res_file, double* data, int* landmarks, double* costs, int n, int d);
-    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
-    void save_csv(const char* csv_file, double* Y, int N, int D);
-
-private:
-    void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta);
-    void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
-    double evaluateError(double* P, double* Y, int N, int D);
-    double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta);
-    void zeroMean(double* X, int N, int D);
-    void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity);
-    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
-    void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
-    double randn();
-};
+void DLL_PUBLIC run(
+         double* X, int N, int D,
+         double* Y, int no_dims,
+         double perplexity, double theta, int rand_seed,
+         bool skip_random_init, double *init, bool use_init,
+         int max_iter=1000, int stop_lying_iter=250, int mom_switch_iter=250);
+}
 
 #endif

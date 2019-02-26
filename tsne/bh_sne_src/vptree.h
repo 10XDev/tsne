@@ -33,17 +33,18 @@
 
 /* This code was adopted with minor modifications from Steve Hanov's great tutorial at http://stevehanov.ca/blog/index.php?id=130 */
 
-#include <stdlib.h>
-#include <algorithm>
-#include <vector>
-#include <stdio.h>
-#include <queue>
-#include <limits>
-#include <cmath>
-
-
 #ifndef VPTREE_H
 #define VPTREE_H
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <limits>
+#include <queue>
+#include <vector>
+
+#pragma GCC visibility push(hidden)
 
 class DataPoint
 {
@@ -269,4 +270,5 @@ private:
     }
 };
             
-#endif
+#pragma GCC visibility pop
+#endif  // !defined(VPTREE_H)

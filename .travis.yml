@@ -4,11 +4,11 @@ python:
   - "2.7"
   # - "3.4"
 
+dist: xenial
 addons:
   apt:
     packages:
       - build-essential
-      - libatlas-base-dev
 
 sudo: false
 

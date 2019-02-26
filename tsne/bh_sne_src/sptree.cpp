@@ -30,14 +30,15 @@
  *
  */
 
-#include <math.h>
-#include <float.h>
-#include <stdlib.h>
-#include <stdio.h>
+
+#include <cfloat>
+#include <cstdlib>
+#include <cstdio>
 #include <cmath>
+
 #include "sptree.h"
 
-
+#pragma GCC visibility push(hidden)
 
 // Constructs cell
 template<int NDims>
@@ -448,3 +449,5 @@ void SPTree<NDims>::print()
 // declare templates explicitly
 template class SPTree<2>;
 template class SPTree<3>;
+
+#pragma GCC visibility pop

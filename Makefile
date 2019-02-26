@@ -1,14 +1,23 @@
-build:
-	python setup.py build_ext --inplace
+.PHONY: build
 
-install:
-	python setup.py build_ext --inplace
-	python setup.py install
+build: setup.py tsne/bh_sne.pyx \
+       $(wildcard tsne/bh_sne_src/*.h) \
+       $(wildcard tsne/bh_sne_src/*.cpp)
+	python $< build_ext --inplace
 
-sdist:
-	python setup.py sdist
+install: setup.py build
+	python $< install
+
+sdist: setup.py tsne/bh_sne.pyx \
+       $(wildcard tsne/bh_sne_src/*.h) \
+       $(wildcard tsne/bh_sne_src/*.cpp)
+	python $< sdist
+
+test: build
+	cd tsne/tests && py.test -s -vv
 
 clean:
+	make -C tsne/bh_sne_src clean
 	rm -rf *.pyc *.so build/ bh_sne.cpp
 	rm -rf tsne/*.pyc tsne/*.so tsne/*.o tsne/build/ tsne/bh_sne.cpp
 	rm -rf .pytest_cache/

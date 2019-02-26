@@ -30,12 +30,10 @@
  *
  */
 
-
 #ifndef SPTREE_H
 #define SPTREE_H
 
-using namespace std;
-
+#pragma GCC visibility push(hidden)
 
 template <int NDims=2>
 class Cell {
@@ -119,4 +117,5 @@ struct SPTree<0>
     enum { 	no_children = 1 };
 };
 
+#pragma GCC visibility pop
 #endif
