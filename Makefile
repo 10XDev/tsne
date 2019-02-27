@@ -10,4 +10,5 @@ sdist:
 
 clean:
 	rm -rf *.pyc *.so build/ bh_sne.cpp
-	rm -rf tsne/*.pyc tsne/*.so tsne/build/ tsne/bh_sne.cpp
+	rm -rf tsne/*.pyc tsne/*.so tsne/*.o tsne/build/ tsne/bh_sne.cpp
+	rm -rf .pytest_cache/
