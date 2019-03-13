@@ -59,14 +59,8 @@ class SPTree {
   enum { no_children = 2 * SPTree<NDims - 1>::no_children };
 
  private:
-  // A buffer we use when doing force computations
-  double buff[NDims];
-
   // Properties of this node in the tree
-  SPTree<NDims>* parent;
-  unsigned int dimension;
   bool is_leaf;
-  unsigned int size;
   unsigned int cum_size;
 
   // Axis-aligned bounding box stored as a center with half-dimensions to
@@ -87,13 +81,8 @@ class SPTree {
   SPTree(double* inp_data, double* inp_corner, double* inp_width);
   SPTree(double* inp_data, unsigned int N, double* inp_corner,
          double* inp_width);
-  SPTree(SPTree* inp_parent, double* inp_data, unsigned int N,
-         double* inp_corner, double* inp_width);
-  SPTree(SPTree* inp_parent, double* inp_data, double* inp_corner,
-         double* inp_width);
   ~SPTree();
   void setData(double* inp_data);
-  SPTree* getParent();
   void construct(Cell<NDims> boundary);
   bool insert(unsigned int new_index);
   void subdivide();
@@ -108,8 +97,7 @@ class SPTree {
   void print();
 
  private:
-  void init(SPTree* inp_parent, double* inp_data, double* inp_corner,
-            double* inp_width);
+  void init(double* inp_data, double* inp_corner, double* inp_width);
   void fill(unsigned int N);
   unsigned int getAllIndices(unsigned int* indices, unsigned int loc);
   bool isChild(unsigned int test_index, unsigned int start, unsigned int end);
