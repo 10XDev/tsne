@@ -7,6 +7,7 @@ To upload a new version:
 """
 
 import sys
+import os
 import platform
 
 from distutils.core import setup
@@ -47,16 +48,19 @@ if sys.platform == 'darwin':
 
 else:
     # LINUX
-
+    opt_flags = ['-msse3', '-O3', '-flto']
+    ldflags = list(opt_flags)
+    if 'LDFLAGS' in os.environ and os.environ['LDFLAGS']:
+        ldflags.extend(os.environ['LDFLAGS'].split(' '))
+    ldflags.extend(['-Wl,-Bdynamic,--as-needed', '-lgcc_s'])
     ext_modules = [Extension(name='bh_sne',
                              sources=['tsne/bh_sne_src/sptree.cpp',
                                       'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                              include_dirs=[
                                  numpy.get_include(), 'tsne/bh_sne_src/'],
-                             extra_compile_args=['-msse3', '-O3', '-Wall', '-flto',
-                                                 '-fPIC', '-w', '-std=c++14'],
-                             extra_link_args=['-flto',
-                                 '-Wl,-Bdynamic,--as-needed', '-lgcc_s'],
+                             extra_compile_args=opt_flags +
+                             ['-Wall', '-fPIC', '-std=c++14', '-w'],
+                             extra_link_args=ldflags,
                              language='c++'),
                    ]
 
