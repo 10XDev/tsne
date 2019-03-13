@@ -31,11 +31,11 @@
  *
  */
 
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <array>
 
 #include "sptree.h"
 
@@ -218,18 +218,18 @@ bool SPTree<NDims>::insert(unsigned int new_index) {
   }
 
   // If there is space in this quad tree and it is a leaf, add the object here
-  if (is_leaf && size < QT_NODE_CAPACITY) {
-    index[size] = new_index;
+  if (is_leaf && size < 1) {
+    index = new_index;
     size++;
     return true;
   }
 
   // Don't add duplicates for now (this is not very nice)
   bool any_duplicate = false;
-  for (unsigned int n = 0; n < size; n++) {
+  if (size > 0) {
     bool duplicate = true;
     for (unsigned int d = 0; d < NDims; d++) {
-      if (point[d] != data[index[n] * NDims + d]) {
+      if (point[d] != data[index * NDims + d]) {
         duplicate = false;
         break;
       }
@@ -274,13 +274,13 @@ void SPTree<NDims>::subdivide() {
   }
 
   // Move existing points to correct children
-  for (unsigned int i = 0; i < size; i++) {
+  if (size > 0) {
     bool success = false;
     for (unsigned int j = 0; j < no_children; j++) {
       if (!success)
-        success = children[j]->insert(index[i]);
+        success = children[j]->insert(index);
     }
-    index[i] = -1;
+    index = -1;
   }
 
   // Empty parent node
@@ -298,8 +298,8 @@ void SPTree<NDims>::fill(unsigned int N) {
 // Checks whether the specified tree is correct
 template <int NDims>
 bool SPTree<NDims>::isCorrect() {
-  for (unsigned int n = 0; n < size; n++) {
-    double* point = data + index[n] * NDims;
+  if (size > 0) {
+    double* point = data + index * NDims;
     if (!boundary.containsPoint(point))
       return false;
   }
@@ -323,8 +323,8 @@ template <int NDims>
 unsigned int SPTree<NDims>::getAllIndices(unsigned int* indices,
                                           unsigned int loc) {
   // Gather indices in current quadrant
-  for (unsigned int i = 0; i < size; i++)
-    indices[loc + i] = index[i];
+  if (size > 0)
+    indices[loc] = index;
   loc += size;
 
   // Gather indices in children
@@ -350,7 +350,7 @@ template <int NDims>
 void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta,
                                          double neg_f[], double* sum_Q) {
   // Make sure that we spend no time on empty nodes or self-interactions
-  if (cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index))
+  if (cum_size == 0 || (is_leaf && size == 1 && index == point_index))
     return;
 
   // Compute distance between point and center-of-mass
@@ -425,15 +425,12 @@ void SPTree<NDims>::print() {
 
   if (is_leaf) {
     fprintf(stderr, "Leaf node; data = [");
-    for (int i = 0; i < size; i++) {
-      double* point = data + index[i] * NDims;
+    if (size > 0) {
+      double* point = data + index * NDims;
       for (int d = 0; d < NDims; d++)
         fprintf(stderr, "%f, ", point[d]);
-      fprintf(stderr, " (index = %d)", index[i]);
-      if (i < size - 1)
-        fprintf(stderr, "\n");
-      else
-        fprintf(stderr, "]\n");
+      fprintf(stderr, " (index = %d)", index);
+      fprintf(stderr, "]\n");
     }
   } else {
     fprintf(stderr, "Intersection node with center-of-mass = [");

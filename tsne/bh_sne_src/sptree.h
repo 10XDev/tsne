@@ -59,9 +59,6 @@ class SPTree {
   enum { no_children = 2 * SPTree<NDims - 1>::no_children };
 
  private:
-  // Fixed constants
-  static const unsigned int QT_NODE_CAPACITY = 1;
-
   // A buffer we use when doing force computations
   double buff[NDims];
 
@@ -80,7 +77,7 @@ class SPTree {
   // and list of all children
   double* data;
   double center_of_mass[NDims];
-  unsigned int index[QT_NODE_CAPACITY];
+  unsigned int index;
 
   // Children
   SPTree<NDims>* children[no_children];
