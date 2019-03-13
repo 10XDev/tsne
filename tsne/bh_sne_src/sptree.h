@@ -62,21 +62,41 @@ class SPTree {
   enum { no_children = 2 * SPTree<NDims - 1>::no_children };
 
  private:
-  // Axis-aligned bounding box stored as a center with half-dimensions to
-  // represent the boundaries of this quad tree
-  Cell<NDims> boundary;
+  class Node {
+   public:
+    bool isCorrect(const double* data) const;
+    bool insert(const double* data, unsigned int new_index);
+    void subdivide(const double* data);
+    void print(const double* data) const;
+    void computeNonEdgeForces(const double* data, unsigned int point_index,
+                              double theta, double neg_f[],
+                              double* sum_Q) const;
+    void computeEdgeForces(const double* data, const unsigned int* row_P,
+                           const unsigned int* col_P, const double* val_P,
+                           int N, double* pos_f) const;
+    unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
+    void init(const double* inp_corner, const double* inp_width);
+
+   private:
+    // Axis-aligned bounding box stored as a center with half-dimensions to
+    // represent the boundaries of this quad tree
+    Cell<NDims> boundary;
+
+    std::array<double, NDims> center_of_mass;
+
+    // Children
+    std::unique_ptr<std::array<SPTree<NDims>::Node, no_children>> children;
+
+    // Properties of this node in the tree
+    unsigned int index;
+    unsigned int cum_size;
+  };
 
   // Indices in this space-partitioning tree node, corresponding center-of-mass,
   // and list of all children
   const double* data;
-  std::array<double, NDims> center_of_mass;
 
-  // Children
-  std::unique_ptr<std::array<SPTree<NDims>, no_children>> children;
-
-  // Properties of this node in the tree
-  unsigned int cum_size;
-  unsigned int index;
+  Node node;
 
   SPTree(const SPTree<NDims>&) = delete;
   SPTree& operator=(const SPTree<NDims>&) = delete;
@@ -86,12 +106,8 @@ class SPTree {
   SPTree(SPTree<NDims>&&) = default;
   SPTree(const double* inp_data, unsigned int N);
   ~SPTree() = default;
-  void setData(double* inp_data);
-  void construct(Cell<NDims> boundary);
   bool isCorrect() const;
-  void rebuildTree();
   void getAllIndices(unsigned int* indices) const;
-  unsigned int getDepth() const;
   void computeNonEdgeForces(unsigned int point_index, double theta,
                             double neg_f[], double* sum_Q) const;
   void computeEdgeForces(const unsigned int* row_P, const unsigned int* col_P,
@@ -99,14 +115,7 @@ class SPTree {
   void print() const;
 
  private:
-  void init(const double* inp_data, const double* inp_corner,
-            const double* inp_width);
   void fill(unsigned int N);
-  bool insert(unsigned int new_index);
-  void subdivide();
-  unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
-  bool isChild(unsigned int test_index, unsigned int start,
-               unsigned int end) const;
 };
 
 template <>
