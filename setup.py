@@ -49,6 +49,11 @@ if sys.platform == 'darwin':
 else:
     # LINUX
     opt_flags = ['-msse3', '-O3', '-flto']
+    if 'PROFILE' in os.environ:
+        if os.environ['PROFILE'] == 'generate':
+            opt_flags.append('-fprofile-instr-generate')
+        elif os.path.isfile(os.environ['PROFILE']):
+            opt_flags.append('-fprofile-instr-use='+os.environ['PROFILE'])
     ldflags = list(opt_flags)
     if 'LDFLAGS' in os.environ and os.environ['LDFLAGS']:
         ldflags.extend(os.environ['LDFLAGS'].split(' '))
