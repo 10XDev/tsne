@@ -324,10 +324,12 @@ void computeGaussianPerplexity(double* X, int N, int D,
     row_P[n + 1] = row_P[n] + (unsigned int)K;
 
   // Build ball tree on data set
-  VpTree<DataPoint, euclidean_distance> tree;
-  vector<DataPoint> obj_X(N, DataPoint(D, -1, X));
+  auto dist = [D](auto x, auto y) { return euclidean_distance(D, x, y); };
+  VpTree<DataPoint, euclidean_distance> tree((euclidean_distance(D)));
+  vector<DataPoint> obj_X;
+  obj_X.reserve(N);
   for (int n = 0; n < N; n++)
-    obj_X[n] = DataPoint(D, n, X + n * D);
+    obj_X.emplace_back(DataPoint(X + n * D));
   tree.create(obj_X);
 
   // Loop over all points to find nearest neighbors
@@ -395,7 +397,7 @@ void computeGaussianPerplexity(double* X, int N, int D,
     for (unsigned int m = 0; m < K; m++)
       cur_P[m] /= sum_P;
     for (unsigned int m = 0; m < K; m++) {
-      col_P[row_P[n] + m] = (unsigned int)indices[m + 1].index();
+      col_P[row_P[n] + m] = (unsigned int)(indices[m + 1]._x - X) / D;
       val_P[row_P[n] + m] = cur_P[m];
     }
   }

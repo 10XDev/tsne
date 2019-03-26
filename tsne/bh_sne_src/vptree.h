@@ -47,79 +47,45 @@
 
 #pragma GCC visibility push(hidden)
 
-class DataPoint {
-  int _ind;
-
+class DataPoint final {
  public:
-  double* _x;
-  int _D;
-  DataPoint() {
-    _D = 1;
-    _ind = -1;
-    _x = NULL;
+  const double* _x;
+  DataPoint(const double* x) : _x(x) {
   }
-  DataPoint(int D, int ind, const double* x) {
-    _D = D;
-    _ind = ind;
-    _x = (double*)malloc(_D * sizeof(double));
-    for (int d = 0; d < _D; d++)
-      _x[d] = x[d];
-  }
-  DataPoint(const DataPoint& other) {  // this makes a deep copy -- should not
-                                       // free anything
-    if (this != &other) {
-      _D = other.dimensionality();
-      _ind = other.index();
-      _x = (double*)malloc(_D * sizeof(double));
-      for (int d = 0; d < _D; d++)
-        _x[d] = other.x(d);
-    }
-  }
-  ~DataPoint() {
-    if (_x != NULL)
-      free(_x);
-  }
-  DataPoint& operator=(const DataPoint& other) {  // asignment should free old
-                                                  // object
-    if (this != &other) {
-      if (_x != NULL)
-        free(_x);
-      _D = other.dimensionality();
-      _ind = other.index();
-      _x = (double*)malloc(_D * sizeof(double));
-      for (int d = 0; d < _D; d++)
-        _x[d] = other.x(d);
-    }
-    return *this;
-  }
-  int index() const {
-    return _ind;
-  }
-  int dimensionality() const {
-    return _D;
-  }
+  DataPoint(const DataPoint&) = default;
+  DataPoint(DataPoint&&) = default;
+  DataPoint& operator=(const DataPoint& other) = default;
   double x(int d) const {
     return _x[d];
   }
 };
 
-double euclidean_distance(const DataPoint& t1, const DataPoint& t2) {
-  double dd = .0;
-  double* x1 = t1._x;
-  double* x2 = t2._x;
-  double diff;
-  for (int d = 0; d < t1._D; d++) {
-    diff = (x1[d] - x2[d]);
-    dd += diff * diff;
-  }
-  return sqrt(dd);
-}
+class euclidean_distance final {
+  const int _D;
 
-template <typename T, double (*distance)(const T&, const T&)>
+ public:
+  explicit euclidean_distance(int D) : _D(D) {
+  }
+  euclidean_distance(euclidean_distance&&) = default;
+  euclidean_distance(const euclidean_distance&) = default;
+  double operator()(const DataPoint& t1, const DataPoint& t2) const {
+    double dd = .0;
+    const double* x1 = t1._x;
+    const double* x2 = t2._x;
+    double diff;
+    for (int d = 0; d < _D; d++) {
+      diff = (x1[d] - x2[d]);
+      dd += diff * diff;
+    }
+    return sqrt(dd);
+  }
+};
+
+template <typename T, class Distance>
 class VpTree {
  public:
   // Default constructor
-  VpTree() = default;
+  explicit VpTree(Distance&& distance) : distance(distance){};
 
   // Destructor
   ~VpTree() = default;
@@ -157,6 +123,7 @@ class VpTree {
   }
 
  private:
+  const Distance distance;
   std::vector<T> _items;
   double _tau;
 
@@ -186,16 +153,6 @@ class VpTree {
     }
   };
 
-  // Distance comparator for use in std::nth_element
-  struct DistanceComparator {
-    const T& item;
-    DistanceComparator(const T& item) : item(item) {
-    }
-    bool operator()(const T& a, const T& b) {
-      return distance(item, a) < distance(item, b);
-    }
-  };
-
   // Function that (recursively) fills the tree
   std::unique_ptr<Node> buildFromPoints(int lower, int upper) {
     if (upper == lower) {  // indicates that we're done here!
@@ -214,12 +171,15 @@ class VpTree {
 
       // Partition around the median distance
       int median = (upper + lower) / 2;
-      std::nth_element(_items.begin() + lower + 1, _items.begin() + median,
-                       _items.begin() + upper,
-                       DistanceComparator(_items[lower]));
+      auto& lower_item = _items[lower];
+      std::nth_element(
+          _items.begin() + lower + 1, _items.begin() + median,
+          _items.begin() + upper, [this, lower_item](auto& x, auto& y) {
+            return distance(lower_item, x) < distance(lower_item, y);
+          });
 
       // Threshold of the new node will be the distance to the median
-      node->threshold = distance(_items[lower], _items[median]);
+      node->threshold = distance(lower_item, _items[median]);
 
       // Recursively build tree
       node->index = lower;
@@ -289,6 +249,9 @@ class VpTree {
       }
     }
   }
+
+  VpTree(const VpTree<T, Distance>&) = delete;
+  VpTree& operator=(const VpTree<T, Distance>&) = delete;
 };
 
 #pragma GCC visibility pop
