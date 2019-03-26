@@ -40,7 +40,7 @@
 #pragma GCC visibility push(hidden)
 
 template <int NDims = 2>
-class Cell {
+class alignas(16) Cell {
   std::array<double, NDims> corner;
   std::array<double, NDims> width;
 
@@ -62,7 +62,7 @@ class SPTree {
   enum { no_children = 2 * SPTree<NDims - 1>::no_children };
 
  private:
-  class Node {
+  class alignas(16) Node {
    public:
     bool isCorrect(const double* data) const;
     bool insert(const double* data, unsigned int new_index);
@@ -78,11 +78,11 @@ class SPTree {
     void init(const double* inp_corner, const double* inp_width);
 
    private:
+    std::array<double, NDims> center_of_mass;
+
     // Axis-aligned bounding box stored as a center with half-dimensions to
     // represent the boundaries of this quad tree
     Cell<NDims> boundary;
-
-    std::array<double, NDims> center_of_mass;
 
     // Children
     std::unique_ptr<std::array<SPTree<NDims>::Node, no_children>> children;
