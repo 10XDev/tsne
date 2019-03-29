@@ -1,10 +1,11 @@
 # encoding: utf-8
 from __future__ import division
+
 import numpy as np
 import scipy.linalg as la
 import sys
 from bh_sne import BH_SNE
-from bh_sne_3d import BH_SNE_3D
+
 
 def bh_sne(data, pca_d=None, d=2, perplexity=30., theta=0.5,
            random_state=None, copy_data=False, init=None,
@@ -79,16 +80,15 @@ def bh_sne(data, pca_d=None, d=2, perplexity=30., theta=0.5,
     if mom_switch_iter is None:
         mom_switch_iter = 250
 
-    if d == 2:
-        tsne = BH_SNE()
-    elif d == 3:
-        tsne = BH_SNE_3D()
-    else:
+    if d != 2 and d != 3:
         raise Exception("TSNE dimensions must be 2 or 3")
 
-    Y = tsne.run(X, N, X.shape[1], d, perplexity, theta, seed, init=init, use_init=use_init,
-                 max_iter=max_iter, stop_lying_iter=stop_lying_iter, mom_switch_iter=mom_switch_iter)
+    Y = BH_SNE.run(X, d,
+                   perplexity, theta,
+                   seed, init=init, use_init=use_init,
+                   max_iter=max_iter, stop_lying_iter=stop_lying_iter, mom_switch_iter=mom_switch_iter)
     return Y
+
 
 from ._version import get_versions
 __version__ = get_versions()['version']

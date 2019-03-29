@@ -7,6 +7,7 @@ To upload a new version:
 """
 
 import sys
+import os
 import platform
 
 from distutils.core import setup
@@ -28,35 +29,45 @@ if sys.platform == 'darwin':
 
     if v2 >= 10:
         # More than 10.10
-        extra_compile_args=['-I/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/Headers']
+        extra_compile_args = [
+            '-I/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/Headers']
     else:
-        extra_compile_args=['-I/System/Library/Frameworks/vecLib.framework/Headers']
+        extra_compile_args = [
+            '-I/System/Library/Frameworks/vecLib.framework/Headers']
 
     ext_modules = [Extension(name='bh_sne',
-                   sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
-                   include_dirs=[numpy.get_include(), 'tsne/bh_sne_src/'],
-                   extra_compile_args=extra_compile_args + ['-ffast-math', '-O3'],
-                   extra_link_args=['-Wl,-framework', '-Wl,Accelerate', '-lcblas'],
-                   language='c++')]
+                             sources=['tsne/bh_sne_src/sptree.cpp',
+                                      'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
+                             include_dirs=[
+                                 numpy.get_include(), 'tsne/bh_sne_src/'],
+                             extra_compile_args=extra_compile_args +
+                             ['-ffast-math', '-O3', '-std=c++14'],
+                             extra_link_args=['-Wl,-framework',
+                                              '-Wl,Accelerate'],
+                             language='c++')]
 
 else:
     # LINUX
-
+    opt_flags = ['-msse3', '-O3', '-flto']
+    if 'PROFILE' in os.environ:
+        if os.environ['PROFILE'] == 'generate':
+            opt_flags.append('-fprofile-instr-generate')
+        elif os.path.isfile(os.environ['PROFILE']):
+            opt_flags.append('-fprofile-instr-use='+os.environ['PROFILE'])
+    ldflags = list(opt_flags)
+    if 'LDFLAGS' in os.environ and os.environ['LDFLAGS']:
+        ldflags.extend(os.environ['LDFLAGS'].split(' '))
+    ldflags.extend(['-Wl,-Bdynamic,--as-needed', '-lgcc_s'])
     ext_modules = [Extension(name='bh_sne',
-                   sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
-                   include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
-                   library_dirs=['/usr/local/lib', '/usr/lib64/atlas'],
-                   extra_compile_args=['-msse3', '-O3', '-fPIC', '-w', '-ffast-math'],
-                   extra_link_args=['-Wl,-Bdynamic,--as-needed', '-lgcc_s'],
-                   language='c++'),
-
-                   Extension(name='bh_sne_3d',
-                   sources=['tsne/bh_sne_src/sptree.cpp', 'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne_3d.pyx'],
-                   include_dirs=[numpy.get_include(), '/usr/local/include', 'tsne/bh_sne_src/'],
-                   library_dirs=['/usr/local/lib', '/usr/lib64/atlas'],
-                   extra_compile_args=['-msse3', '-O3', '-fPIC', '-w', '-ffast-math', '-DTSNE3D'],
-                   extra_link_args=['-Wl,-Bdynamic,--as-needed', '-lgcc_s'],
-                   language='c++')]
+                             sources=['tsne/bh_sne_src/sptree.cpp',
+                                      'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
+                             include_dirs=[
+                                 numpy.get_include(), 'tsne/bh_sne_src/'],
+                             extra_compile_args=opt_flags +
+                             ['-Wall', '-fPIC', '-std=c++14', '-w'],
+                             extra_link_args=ldflags,
+                             language='c++'),
+                   ]
 
 ext_modules = cythonize(ext_modules)
 
@@ -77,4 +88,4 @@ setup(name='tsne',
       packages=find_packages(),
       ext_modules=ext_modules,
       install_requires=required
-)
+      )
