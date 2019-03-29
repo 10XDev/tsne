@@ -297,12 +297,11 @@ template <int NDims>
 
   // Check whether we can use this node as a "summary"
   double max_width = 0.0;
-  double cur_width;
   for (unsigned int d = 0; d < NDims; d++) {
-    cur_width = boundary.getWidth(d);
+    double cur_width = boundary.getWidth(d);
     max_width = (max_width > cur_width) ? max_width : cur_width;
   }
-  if (!children || max_width / sqrt(sqdist) < theta) {
+  if (!children || max_width * max_width < sqdist * theta * theta) {
     // Compute and add t-SNE force between point and current node
     sqdist = 1.0 / (1.0 + sqdist);
     double mult = cum_size * sqdist;
