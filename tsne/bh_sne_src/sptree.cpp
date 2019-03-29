@@ -43,6 +43,7 @@
 
 using std::array;
 using std::make_unique;
+using std::vector;
 
 template <int NDims>
 Cell<NDims>::Cell(const double* inp_corner, const double* inp_width) {
@@ -318,19 +319,20 @@ template <int NDims>
 
 // Computes edge forces
 template <int NDims>
-void SPTree<NDims>::computeEdgeForces(const unsigned int* row_P,
-                                      const unsigned int* col_P,
-                                      const double* val_P, int N,
-                                      double* pos_f) const {
-  node.computeEdgeForces(data, row_P, col_P, val_P, N, pos_f);
+vector<double> SPTree<NDims>::computeEdgeForces(const unsigned int* row_P,
+                                                const unsigned int* col_P,
+                                                const double* val_P,
+                                                int N) const {
+  return node.computeEdgeForces(data, row_P, col_P, val_P, N);
 }
 
 template <int NDims>
-void SPTree<NDims>::Node::computeEdgeForces(const double* data,
-                                            const unsigned int* row_P,
-                                            const unsigned int* col_P,
-                                            const double* val_P, int N,
-                                            double* pos_f) const {
+vector<double> SPTree<NDims>::Node::computeEdgeForces(const double* data,
+                                                      const unsigned int* row_P,
+                                                      const unsigned int* col_P,
+                                                      const double* val_P,
+                                                      int N) const {
+  vector<double> pos_f(N * NDims);
   // Loop over all edges in the graph
   unsigned int ind1 = 0;
   unsigned int ind2 = 0;
@@ -355,6 +357,7 @@ void SPTree<NDims>::Node::computeEdgeForces(const double* data,
     }
     ind1 += NDims;
   }
+  return pos_f;
 }
 
 // Print out tree

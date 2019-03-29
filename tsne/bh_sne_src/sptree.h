@@ -36,6 +36,7 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 
 #pragma GCC visibility push(hidden)
 
@@ -71,9 +72,10 @@ class SPTree {
     void computeNonEdgeForces(const double* data, unsigned int point_index,
                               double theta, double neg_f[],
                               double* sum_Q) const;
-    void computeEdgeForces(const double* data, const unsigned int* row_P,
-                           const unsigned int* col_P, const double* val_P,
-                           int N, double* pos_f) const;
+    std::vector<double> computeEdgeForces(const double* data,
+                                          const unsigned int* row_P,
+                                          const unsigned int* col_P,
+                                          const double* val_P, int N) const;
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
     void init(const double* inp_corner, const double* inp_width);
 
@@ -110,8 +112,9 @@ class SPTree {
   void getAllIndices(unsigned int* indices) const;
   void computeNonEdgeForces(unsigned int point_index, double theta,
                             double neg_f[], double* sum_Q) const;
-  void computeEdgeForces(const unsigned int* row_P, const unsigned int* col_P,
-                         const double* val_P, int N, double* pos_f) const;
+  std::vector<double> computeEdgeForces(const unsigned int* row_P,
+                                        const unsigned int* col_P,
+                                        const double* val_P, int N) const;
   void print() const;
 
  private:

@@ -88,7 +88,7 @@ void computeGaussianPerplexity(double* X, int N, int D,
                                vector<unsigned int>* _col_P,
                                vector<double>* _val_P, double perplexity,
                                int K);
-void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
+vector<double> computeSquaredEuclideanDistance(double* X, int N, int D);
 double randn();
 void symmetrizeMatrix(vector<unsigned int>* row_P, vector<unsigned int>* col_P,
                       vector<double>* val_P, int N);
@@ -108,10 +108,9 @@ void computeGradient(const vector<unsigned int>& inp_row_P,
 
   // Compute all terms required for t-SNE gradient
   double sum_Q = .0;
-  vector<double> pos_f(N * NDIMS);
   vector<double> neg_f(N * NDIMS);
-  tree.computeEdgeForces(inp_row_P.data(), inp_col_P.data(), inp_val_P.data(),
-                         N, pos_f.data());
+  auto pos_f = tree.computeEdgeForces(inp_row_P.data(), inp_col_P.data(),
+                                      inp_val_P.data(), N);
   for (int n = 0; n < N; n++)
     tree.computeNonEdgeForces(n, theta, neg_f.data() + n * NDIMS, &sum_Q);
 
@@ -129,8 +128,7 @@ void computeExactGradient(const vector<double>& P, double* Y, int N,
   dC.assign(N * D, 0.0);
 
   // Compute the squared Euclidean distance matrix
-  vector<double> DD(N * N);
-  computeSquaredEuclideanDistance(Y, N, D, DD.data());
+  vector<double> DD = computeSquaredEuclideanDistance(Y, N, D);
 
   // Compute Q-matrix and normalization sum
   vector<double> Q(N * N);
@@ -169,9 +167,8 @@ void computeExactGradient(const vector<double>& P, double* Y, int N,
 template <int D>
 double evaluateError(const vector<double>& P, double* Y, int N) {
   // Compute the squared Euclidean distance matrix
-  vector<double> DD(N * N);
+  vector<double> DD = computeSquaredEuclideanDistance(Y, N, D);
   vector<double> Q(N * N);
-  computeSquaredEuclideanDistance(Y, N, D, DD.data());
 
   // Compute Q-matrix and normalization sum
   int nN = 0;
@@ -240,8 +237,7 @@ double evaluateError(const vector<unsigned int>& row_P,
 void computeGaussianPerplexity(double* X, int N, int D, double* P,
                                double perplexity) {
   // Compute the squared Euclidean distance matrix
-  vector<double> DD(N * N);
-  computeSquaredEuclideanDistance(X, N, D, DD.data());
+  vector<double> DD = computeSquaredEuclideanDistance(X, N, D);
 
   // Compute the Gaussian kernel row by row
   int nN = 0;
@@ -493,7 +489,8 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
 }
 
 // Compute squared Euclidean distance matrix
-void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
+vector<double> computeSquaredEuclideanDistance(double* X, int N, int D) {
+  vector<double> DD(N * N);
   const double* XnD = X;
   for (int n = 0; n < N; ++n, XnD += D) {
     const double* XmD = XnD + D;
@@ -501,13 +498,16 @@ void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
     *curr_elem = 0.0;
     double* curr_elem_sym = curr_elem + N;
     for (int m = n + 1; m < N; ++m, XmD += D, curr_elem_sym += N) {
-      *(++curr_elem) = 0.0;
+      double total = 0.0;
       for (int d = 0; d < D; ++d) {
-        *curr_elem += (XnD[d] - XmD[d]) * (XnD[d] - XmD[d]);
+        double diff = XnD[d] - XmD[d];
+        total += diff * diff;
       }
+      *(++curr_elem) = total;
       *curr_elem_sym = *curr_elem;
     }
   }
+  return DD;
 }
 
 // Makes data zero-mean
@@ -644,7 +644,7 @@ void run(double* X, int N, int D, double* Y, double perplexity, double theta,
     fprintf(stderr, "Symmetrizing...\n");
     int nN = 0;
     for (int n = 0; n < N; n++) {
-      int mN = (n + 1) * N;
+      int mN = nN + N;
       for (int m = n + 1; m < N; m++) {
         P[nN + m] += P[mN + n];
         P[mN + n] = P[nN + m];
