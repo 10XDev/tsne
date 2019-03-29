@@ -324,18 +324,18 @@ void computeGaussianPerplexity(double* X, int N, int D,
     row_P[n + 1] = row_P[n] + (unsigned int)K;
 
   // Build ball tree on data set
-  auto dist = [D](auto x, auto y) { return euclidean_distance(D, x, y); };
-  VpTree<DataPoint, euclidean_distance> tree((euclidean_distance(D)));
-  vector<DataPoint> obj_X;
-  obj_X.reserve(N);
+  VpTree<unsigned int, euclidean_distance> tree((euclidean_distance(D, X)));
+  vector<unsigned int> obj_X(N);
   for (int n = 0; n < N; n++)
-    obj_X.emplace_back(DataPoint(X + n * D));
+    obj_X[n] = n;
   tree.create(obj_X);
 
   // Loop over all points to find nearest neighbors
   fprintf(stderr, "Building tree...\n");
-  vector<DataPoint> indices;
+  vector<unsigned int> indices;
   vector<double> distances;
+  indices.reserve(N);
+  distances.reserve(N);
   for (int n = 0; n < N; n++) {
     if (n % 10000 == 0)
       fprintf(stderr, " - point %d of %d\n", n, N);
@@ -397,7 +397,7 @@ void computeGaussianPerplexity(double* X, int N, int D,
     for (unsigned int m = 0; m < K; m++)
       cur_P[m] /= sum_P;
     for (unsigned int m = 0; m < K; m++) {
-      col_P[row_P[n] + m] = (unsigned int)(indices[m + 1]._x - X) / D;
+      col_P[row_P[n] + m] = indices[m + 1];
       val_P[row_P[n] + m] = cur_P[m];
     }
   }

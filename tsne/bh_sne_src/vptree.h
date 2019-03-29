@@ -47,34 +47,21 @@
 
 #pragma GCC visibility push(hidden)
 
-class DataPoint final {
- public:
-  const double* _x;
-  DataPoint(const double* x) : _x(x) {
-  }
-  DataPoint(const DataPoint&) = default;
-  DataPoint(DataPoint&&) = default;
-  DataPoint& operator=(const DataPoint& other) = default;
-  double x(int d) const {
-    return _x[d];
-  }
-};
-
 class euclidean_distance final {
   const int _D;
+  const double* data;
 
  public:
-  explicit euclidean_distance(int D) : _D(D) {
+  explicit euclidean_distance(int D, const double* data) : _D(D), data(data) {
   }
   euclidean_distance(euclidean_distance&&) = default;
   euclidean_distance(const euclidean_distance&) = default;
-  double operator()(const DataPoint& t1, const DataPoint& t2) const {
+  double operator()(const unsigned int t1, const unsigned int t2) const {
     double dd = .0;
-    const double* x1 = t1._x;
-    const double* x2 = t2._x;
-    double diff;
+    const double* x1 = data+t1*_D;
+    const double* x2 = data+t2*_D;
     for (int d = 0; d < _D; d++) {
-      diff = (x1[d] - x2[d]);
+      double diff = (x1[d] - x2[d]);
       dd += diff * diff;
     }
     return sqrt(dd);
@@ -156,7 +143,7 @@ class VpTree {
   // Function that (recursively) fills the tree
   std::unique_ptr<Node> buildFromPoints(int lower, int upper) {
     if (upper == lower) {  // indicates that we're done here!
-      return NULL;
+      return nullptr;
     }
 
     // Lower index is center of current node
@@ -194,7 +181,7 @@ class VpTree {
   // Helper function that searches the tree
   void search(const Node* node, const T& target, int k,
               std::priority_queue<HeapItem>& heap) {
-    if (node == NULL)
+    if (node == nullptr)
       return;  // indicates that we're done here
 
     // Compute distance between target and current node
