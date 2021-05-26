@@ -862,6 +862,8 @@ bool DLL_PUBLIC run_n(int n, struct TSNE* tsne) {
 }
 
 void DLL_PUBLIC free_tsne(struct TSNE* tsne) {
+  if (tsne == nullptr)
+    return;
   delete tsne->state;
   delete tsne;
 }
