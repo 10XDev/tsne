@@ -58,8 +58,8 @@ class euclidean_distance final {
   euclidean_distance(const euclidean_distance&) = default;
   double operator()(const unsigned int t1, const unsigned int t2) const {
     double dd = .0;
-    const double* x1 = data+t1*_D;
-    const double* x2 = data+t2*_D;
+    const double* x1 = data + t1 * _D;
+    const double* x2 = data + t2 * _D;
     for (int d = 0; d < _D; d++) {
       double diff = (x1[d] - x2[d]);
       dd += diff * diff;

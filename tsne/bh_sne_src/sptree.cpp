@@ -31,13 +31,13 @@
  *
  */
 
+#include "sptree.h"
+
 #include <array>
 #include <cassert>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
-
-#include "sptree.h"
 
 #pragma GCC visibility push(hidden)
 
