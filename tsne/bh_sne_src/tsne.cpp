@@ -861,6 +861,11 @@ bool DLL_PUBLIC run_n(int n, struct TSNE* tsne) {
   }
 }
 
+void DLL_PUBLIC free_tsne(struct TSNE* tsne) {
+  delete tsne->state;
+  delete tsne;
+}
+
 void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
                     double perplexity, double theta, int rand_seed,
                     bool skip_random_init, double* init, bool use_init,
@@ -869,6 +874,7 @@ void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
                                 rand_seed, skip_random_init, init, use_init,
                                 max_iter, stop_lying_iter, mom_switch_iter);
   run_n(max_iter, tsne);
+  free_tsne(tsne);
 }
 
 }  // extern "C"

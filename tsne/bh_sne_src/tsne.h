@@ -78,6 +78,7 @@ struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
                                   int stop_lying_iter = 250,
                                   int mom_switch_iter = 250);
 bool DLL_PUBLIC run_n(int n, struct TSNE* tsne);
+void DLL_PUBLIC free_tsne(struct TSNE* tsne);
 }
 
 #endif
