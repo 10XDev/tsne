@@ -56,21 +56,7 @@ void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
                     int max_iter = 1000, int stop_lying_iter = 250,
                     int mom_switch_iter = 250);
 // stateful t-SNE
-struct TSNEState;
-struct TSNE {
-  // parameters
-  int N;
-  double* Y;
-  int no_dims;
-  double theta;
-  int max_iter;
-  int stop_lying_iter;
-  int mom_switch_iter;
-  struct TSNEState* state;
-  int iter;
-  float total_time;
-  float residual_time;
-};
+struct TSNE;
 struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
                                   int no_dims, double perplexity, double theta,
                                   int rand_seed, bool skip_random_init,
@@ -78,7 +64,7 @@ struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
                                   int max_iter = 1000,
                                   int stop_lying_iter = 250,
                                   int mom_switch_iter = 250);
-bool DLL_PUBLIC run_n(int n, struct TSNE* tsne);
+bool DLL_PUBLIC step_tsne_by(struct TSNE* tsne, int step);
 void DLL_PUBLIC free_tsne(struct TSNE* tsne);
 }
 

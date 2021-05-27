@@ -40,6 +40,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -55,9 +56,30 @@ using std::fprintf;
 using std::log;
 using std::move;
 using std::sqrt;
+using std::unique_ptr;
 using std::vector;
 
+namespace {
+
 struct TSNEState {
+ public:
+  bool step_by(int n);
+
+ private:
+  template <int NDIMS>
+  bool step_by_impl(int n);
+
+ public:
+  int N;
+  double* Y;
+  int no_dims;
+  double theta;
+  int max_iter;
+  int stop_lying_iter;
+  int mom_switch_iter;
+  int iter;
+  float total_time;
+  float residual_time;
   std::vector<double> P;
   std::vector<unsigned int> row_P;
   std::vector<unsigned int> col_P;
@@ -66,8 +88,6 @@ struct TSNEState {
   std::vector<double> uY;
   std::vector<double> gains;
 };
-
-namespace {
 
 template <int NDIMS>
 void run(double* X, int N, int D, double* Y, double perplexity, double theta,
@@ -589,10 +609,11 @@ double randn() {
 
 // Initialize t-SNE
 template <int NDIMS>
-struct TSNE* init_tsne(double* X, int N, int D, double* Y, double perplexity,
-                       double theta, int rand_seed, bool skip_random_init,
-                       double* init, bool use_init, int max_iter,
-                       int stop_lying_iter, int mom_switch_iter) {
+unique_ptr<TSNEState> make_tsne_impl(double* X, int N, int D, double* Y,
+                                     double perplexity, double theta,
+                                     int rand_seed, bool skip_random_init,
+                                     double* init, bool use_init, int max_iter,
+                                     int stop_lying_iter, int mom_switch_iter) {
   // Set random seed
   if (skip_random_init != true) {
     if (rand_seed >= 0) {
@@ -715,59 +736,34 @@ struct TSNE* init_tsne(double* X, int N, int D, double* Y, double perplexity,
             (float)(end - start) / CLOCKS_PER_SEC,
             (double)row_P[N] / ((double)N * (double)N));
 
-  TSNEState* state = new TSNEState;
-  state->P = P;
-  state->row_P = row_P;
-  state->col_P = col_P;
-  state->val_P = val_P;
-  state->dY = dY;
-  state->uY = uY;
-  state->gains = gains;
-  TSNE* tsne = new TSNE;
-  tsne->N = N;
-  tsne->Y = Y;
-  tsne->no_dims = NDIMS;
-  tsne->theta = theta;
-  tsne->max_iter = max_iter;
-  tsne->stop_lying_iter = stop_lying_iter;
-  tsne->mom_switch_iter = mom_switch_iter;
-  tsne->state = state;
-  tsne->iter = 0;
-  tsne->total_time = 0;
-  tsne->residual_time = 0;
+  auto tsne = std::unique_ptr<TSNEState>(new TSNEState{
+      N, Y, NDIMS, theta, max_iter, stop_lying_iter, mom_switch_iter, 0, .0, .0,
+      P, row_P, col_P, val_P, dY, uY, gains});
 
   return tsne;
 }
 
 // Optimize t-SNE
 template <int NDIMS>
-bool run_n(int n, struct TSNE* tsne) {
+bool TSNEState::step_by_impl(int step) {
   // Set learning parameters
   double momentum = .5, final_momentum = .8;
   double eta = 200.0;
 
   // Extract state
-  int N = tsne->N;
-  double* Y = tsne->Y;
-  double theta = tsne->theta;
   bool exact = (theta == .0) ? true : false;
-  TSNEState* state = tsne->state;
-  vector<double>& dY = state->dY;
-  vector<double>& uY = state->uY;
   clock_t start = clock(), end;
   float elapsed;
-  int max_iter = std::min(tsne->iter + n, tsne->max_iter);
+  int iter_until = std::min(iter + step, max_iter);
 
-  for (int& iter = tsne->iter; iter < max_iter; iter++) {
+  for (; iter < iter_until; iter++) {
     // Compute (approximate) gradient
     if (exact)
-      computeExactGradient<NDIMS>(state->P, Y, N, dY);
+      computeExactGradient<NDIMS>(P, Y, N, dY);
     else
-      computeGradient<NDIMS>(state->row_P, state->col_P, state->val_P, Y, N, dY,
-                             theta);
+      computeGradient<NDIMS>(row_P, col_P, val_P, Y, N, dY, theta);
 
     // Update gains
-    vector<double>& gains = state->gains;
     for (int i = 0; i < N * NDIMS; i++)
       gains[i] =
           (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -785,53 +781,82 @@ bool run_n(int n, struct TSNE* tsne) {
     zeroMean<NDIMS>(Y, N);
 
     // Stop lying about the P-values after a while, and switch momentum
-    if (iter == tsne->stop_lying_iter) {
+    if (iter == stop_lying_iter) {
       if (exact) {
         for (int i = 0; i < N * N; i++)
-          state->P[i] /= 12.0;
+          P[i] /= 12.0;
       } else {
-        for (int i = 0; i < state->row_P[N]; i++)
-          state->val_P[i] /= 12.0;
+        for (int i = 0; i < row_P[N]; i++)
+          val_P[i] /= 12.0;
       }
     }
-    if (iter == tsne->mom_switch_iter)
+    if (iter == mom_switch_iter)
       momentum = final_momentum;
 
     // Print out progress
-    if (iter > 0 && (iter % 50 == 0 || iter == tsne->max_iter - 1)) {
+    if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
       end = clock();
       double C = .0;
       if (exact) {
-        C = evaluateError<NDIMS>(state->P, Y, N);
+        C = evaluateError<NDIMS>(P, Y, N);
       } else {
         // doing approximate computation here!
-        C = evaluateError<NDIMS>(state->row_P, state->col_P, state->val_P, Y, N,
-                                 theta);
+        C = evaluateError<NDIMS>(row_P, col_P, val_P, Y, N, theta);
       }
       if (iter == 0)
         fprintf(stderr, "Iteration %d: error is %f\n", iter + 1, C);
       else {
         elapsed = (float)(end - start) / CLOCKS_PER_SEC;
-        tsne->total_time += elapsed;
-        tsne->residual_time += elapsed;
+        total_time += elapsed;
+        residual_time += elapsed;
         fprintf(stderr,
                 "Iteration %d: error is %f (50 iterations in %4.2f seconds)\n",
-                iter, C, tsne->residual_time);
-        tsne->residual_time = 0;
+                iter, C, residual_time);
+        residual_time = 0;
       }
       start = clock();
     }
   }
   end = clock();
   elapsed = (float)(end - start) / CLOCKS_PER_SEC;
-  tsne->total_time += elapsed;
-  tsne->residual_time += elapsed;
+  total_time += elapsed;
+  residual_time += elapsed;
 
-  if (tsne->iter >= tsne->max_iter) {
-    fprintf(stderr, "Fitting performed in %4.2f seconds.\n", tsne->total_time);
+  if (iter >= max_iter) {
+    fprintf(stderr, "Fitting performed in %4.2f seconds.\n", total_time);
     return true;
   }
   return false;
+}
+
+unique_ptr<TSNEState> make_tsne(double* X, int N, int D, double* Y, int no_dims,
+                                double perplexity, double theta, int rand_seed,
+                                bool skip_random_init, double* init,
+                                bool use_init, int max_iter,
+                                int stop_lying_iter, int mom_switch_iter) {
+  switch (no_dims) {
+    case 2:
+      return make_tsne_impl<2>(X, N, D, Y, perplexity, theta, rand_seed,
+                               skip_random_init, init, use_init, max_iter,
+                               stop_lying_iter, mom_switch_iter);
+    case 3:
+      return make_tsne_impl<3>(X, N, D, Y, perplexity, theta, rand_seed,
+                               skip_random_init, init, use_init, max_iter,
+                               stop_lying_iter, mom_switch_iter);
+    default:
+      throw "invalid dimension";
+  }
+}
+
+bool TSNEState::step_by(int step) {
+  switch (no_dims) {
+    case 2:
+      return step_by_impl<2>(step);
+    case 3:
+      return step_by_impl<3>(step);
+    default:
+      throw "invalid dimension";
+  }
 }
 
 }  // namespace
@@ -843,47 +868,30 @@ struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
                                   double* init, bool use_init, int max_iter,
                                   int stop_lying_iter, int mom_switch_iter) {
   assert(no_dims == 2 || no_dims == 3);
-  switch (no_dims) {
-    case 2:
-      return init_tsne<2>(X, N, D, Y, perplexity, theta, rand_seed,
-                          skip_random_init, init, use_init, max_iter,
-                          stop_lying_iter, mom_switch_iter);
-    case 3:
-      return init_tsne<3>(X, N, D, Y, perplexity, theta, rand_seed,
-                          skip_random_init, init, use_init, max_iter,
-                          stop_lying_iter, mom_switch_iter);
-    default:
-      throw "invalid dimension";
-  }
+  auto tsne = make_tsne(X, N, D, Y, no_dims, perplexity, theta, rand_seed,
+                        skip_random_init, init, use_init, max_iter,
+                        stop_lying_iter, mom_switch_iter);
+  return (TSNE*)tsne.release();
 }
 
-bool DLL_PUBLIC run_n(int n, struct TSNE* tsne) {
-  switch (tsne->no_dims) {
-    case 2:
-      return run_n<2>(n, tsne);
-    case 3:
-      return run_n<3>(n, tsne);
-    default:
-      throw "invalid dimension";
-  }
+bool DLL_PUBLIC step_tsne_by(struct TSNE* tsne, int step) {
+  return ((TSNEState*)tsne)->step_by(step);
 }
 
 void DLL_PUBLIC free_tsne(struct TSNE* tsne) {
   if (tsne == nullptr)
     return;
-  delete tsne->state;
-  delete tsne;
+  delete (TSNEState*)tsne;
 }
 
 void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
                     double perplexity, double theta, int rand_seed,
                     bool skip_random_init, double* init, bool use_init,
                     int max_iter, int stop_lying_iter, int mom_switch_iter) {
-  struct TSNE* tsne = init_tsne(X, N, D, Y, no_dims, perplexity, theta,
-                                rand_seed, skip_random_init, init, use_init,
-                                max_iter, stop_lying_iter, mom_switch_iter);
-  run_n(max_iter, tsne);
-  free_tsne(tsne);
+  auto tsne = make_tsne(X, N, D, Y, no_dims, perplexity, theta, rand_seed,
+                        skip_random_init, init, use_init, max_iter,
+                        stop_lying_iter, mom_switch_iter);
+  tsne->step_by(max_iter);
 }
 
 }  // extern "C"
