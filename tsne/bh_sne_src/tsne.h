@@ -69,6 +69,7 @@ struct TSNE {
   struct TSNEState* state;
   int iter;
   float total_time;
+  float residual_time;
 };
 struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
                                   int no_dims, double perplexity, double theta,

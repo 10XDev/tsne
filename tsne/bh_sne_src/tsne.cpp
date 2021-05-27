@@ -734,6 +734,7 @@ struct TSNE* init_tsne(double* X, int N, int D, double* Y, double perplexity,
   tsne->state = state;
   tsne->iter = 0;
   tsne->total_time = 0;
+  tsne->residual_time = 0;
 
   return tsne;
 }
@@ -754,6 +755,7 @@ bool run_n(int n, struct TSNE* tsne) {
   vector<double>& dY = state->dY;
   vector<double>& uY = state->uY;
   clock_t start = clock(), end;
+  float elapsed;
   int max_iter = std::min(tsne->iter + n, tsne->max_iter);
 
   for (int& iter = tsne->iter; iter < max_iter; iter++) {
@@ -796,7 +798,7 @@ bool run_n(int n, struct TSNE* tsne) {
       momentum = final_momentum;
 
     // Print out progress
-    if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
+    if (iter > 0 && (iter % 50 == 0 || iter == tsne->max_iter - 1)) {
       end = clock();
       double C = .0;
       if (exact) {
@@ -809,16 +811,21 @@ bool run_n(int n, struct TSNE* tsne) {
       if (iter == 0)
         fprintf(stderr, "Iteration %d: error is %f\n", iter + 1, C);
       else {
-        tsne->total_time += (float)(end - start) / CLOCKS_PER_SEC;
+        elapsed = (float)(end - start) / CLOCKS_PER_SEC;
+        tsne->total_time += elapsed;
+        tsne->residual_time += elapsed;
         fprintf(stderr,
                 "Iteration %d: error is %f (50 iterations in %4.2f seconds)\n",
-                iter, C, (float)(end - start) / CLOCKS_PER_SEC);
+                iter, C, tsne->residual_time);
+        tsne->residual_time = 0;
       }
       start = clock();
     }
   }
   end = clock();
-  tsne->total_time += (float)(end - start) / CLOCKS_PER_SEC;
+  elapsed = (float)(end - start) / CLOCKS_PER_SEC;
+  tsne->total_time += elapsed;
+  tsne->residual_time += elapsed;
 
   if (tsne->iter >= tsne->max_iter) {
     fprintf(stderr, "Fitting performed in %4.2f seconds.\n", tsne->total_time);
