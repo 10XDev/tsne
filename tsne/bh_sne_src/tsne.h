@@ -52,7 +52,7 @@ extern "C" {
 // stateless t-SNE
 void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
                     double perplexity, double theta, int rand_seed,
-                    bool skip_random_init, double* init, bool use_init,
+                    bool skip_random_init, const double* init, bool use_init,
                     int max_iter = 1000, int stop_lying_iter = 250,
                     int mom_switch_iter = 250);
 // stateful t-SNE
@@ -60,7 +60,7 @@ struct TSNE;
 struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
                                   int no_dims, double perplexity, double theta,
                                   int rand_seed, bool skip_random_init,
-                                  double* init, bool use_init,
+                                  const double* init, bool use_init,
                                   int max_iter = 1000,
                                   int stop_lying_iter = 250,
                                   int mom_switch_iter = 250);

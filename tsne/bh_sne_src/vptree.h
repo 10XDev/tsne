@@ -49,7 +49,7 @@
 
 class euclidean_distance final {
   const int _D;
-  const double* data;
+  const double* const data;
 
  public:
   explicit euclidean_distance(int D, const double* data) : _D(D), data(data) {
