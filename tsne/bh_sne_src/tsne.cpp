@@ -65,27 +65,27 @@ struct TSNEState {
  public:
   TSNEState(int N, double* const Y, int no_dims, double theta, int max_iter,
             int stop_lying_iter, int mom_switch_iter, int iter,
-            float total_time, float residual_time, vector<double> P,
-            vector<unsigned int> row_P, vector<unsigned int> col_P,
-            vector<double> val_P, vector<double> dY, vector<double> uY,
-            vector<double> gains)
-      : N(N),
-        Y(Y),
-        no_dims(no_dims),
-        theta(theta),
-        max_iter(max_iter),
-        stop_lying_iter(stop_lying_iter),
-        mom_switch_iter(mom_switch_iter),
-        iter(iter),
-        total_time(total_time),
-        residual_time(residual_time),
-        P(P),
-        row_P(row_P),
-        col_P(col_P),
-        val_P(val_P),
-        dY(dY),
-        uY(uY),
-        gains(gains) {
+            float total_time, float residual_time, vector<double>&& P,
+            vector<unsigned int>&& row_P, vector<unsigned int>&& col_P,
+            vector<double>&& val_P, vector<double>&& dY, vector<double>&& uY,
+            vector<double>&& gains)
+      : N{N},
+        Y{Y},
+        no_dims{no_dims},
+        theta{theta},
+        max_iter{max_iter},
+        stop_lying_iter{stop_lying_iter},
+        mom_switch_iter{mom_switch_iter},
+        iter{iter},
+        total_time{total_time},
+        residual_time{residual_time},
+        P{P},
+        row_P{row_P},
+        col_P{col_P},
+        val_P{val_P},
+        dY{dY},
+        uY{uY},
+        gains{gains} {
   }
 
  public:
@@ -768,9 +768,10 @@ unique_ptr<TSNEState> make_tsne_impl(
             static_cast<double>(row_P[N]) /
                 (static_cast<double>(N) * static_cast<double>(N)));
 
-  return std::make_unique<TSNEState>(N, Y, NDIMS, theta, max_iter,
-                                     stop_lying_iter, mom_switch_iter, 0, .0,
-                                     .0, P, row_P, col_P, val_P, dY, uY, gains);
+  return std::make_unique<TSNEState>(
+      N, Y, NDIMS, theta, max_iter, stop_lying_iter, mom_switch_iter, 0, .0, .0,
+      move(P), move(row_P), move(col_P), move(val_P), move(dY), move(uY),
+      move(gains));
 }
 
 // Optimize t-SNE
