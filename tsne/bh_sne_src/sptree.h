@@ -50,8 +50,8 @@ class alignas(16) Cell {
   Cell(const double* inp_corner, const double* inp_width);
   ~Cell() = default;
 
-  double getCorner(unsigned int d) const;
-  double getWidth(unsigned int d) const;
+  [[nodiscard]] double getCorner(unsigned int d) const;
+  [[nodiscard]] double getWidth(unsigned int d) const;
   void setCorner(unsigned int d, double val);
   void setWidth(unsigned int d, double val);
   bool containsPoint(const double point[]) const;
@@ -111,7 +111,7 @@ class SPTree {
   SPTree& operator=(const SPTree<NDims>&) = delete;
   SPTree(const double* inp_data, unsigned int N);
   ~SPTree() = default;
-  bool isCorrect() const;
+  [[nodiscard]] bool isCorrect() const;
   void getAllIndices(unsigned int* indices) const;
   void computeNonEdgeForces(unsigned int point_index,
                             double theta,
