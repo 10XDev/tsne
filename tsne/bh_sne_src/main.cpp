@@ -67,7 +67,7 @@ bool load_data(const char* dat_file,
   fread(max_iter, sizeof(int), 1, h);       // maximum number of iterations
   data->resize(*d * *n);
   fread(data->data(), sizeof(double), *n * *d, h);  // the data
-  if (!feof(h)) {
+  if (feof(h) == 0) {
     fread(rand_seed, sizeof(int), 1, h);  // random seed
   }
   fclose(h);
