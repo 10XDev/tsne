@@ -116,7 +116,7 @@ SPTree<NDims>::SPTree(const double* inp_data, unsigned int N) : data(inp_data) {
   }
 
   for (int d = 0; d < NDims; d++) {
-    mean_Y[d] /= (double)N;
+    mean_Y[d] /= static_cast<double>(N);
   }
 
   // Construct SPTree

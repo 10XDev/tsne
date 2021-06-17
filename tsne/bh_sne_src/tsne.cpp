@@ -438,7 +438,7 @@ void computeGaussianPerplexity(const double* const X,
   vector<double> cur_P(N - 1);
   row_P[0] = 0;
   for (int n = 0; n < N; n++) {
-    row_P[n + 1] = row_P[n] + (unsigned int)K;
+    row_P[n + 1] = row_P[n] + static_cast<unsigned int>(K);
   }
 
   // Build ball tree on data set
@@ -571,7 +571,7 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
   // Construct new row indices for symmetric matrix
   sym_row_P[0] = 0;
   for (int n = 0; n < N; n++) {
-    sym_row_P[n + 1] = sym_row_P[n] + (unsigned int)row_counts[n];
+    sym_row_P[n + 1] = sym_row_P[n] + static_cast<unsigned int>(row_counts[n]);
   }
 
   // Fill the result matrix
@@ -733,7 +733,7 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
   if (skip_random_init != true) {
     if (rand_seed >= 0) {
       fprintf(stderr, "Using random seed: %d\n", rand_seed);
-      srand((unsigned int)rand_seed);
+      srand(static_cast<unsigned int>(rand_seed));
     } else {
       fprintf(stderr, "Using current time as random seed...\n");
       srand(time(nullptr));
@@ -963,7 +963,7 @@ bool TSNEState::step_by_impl(const int step) {
       if (iter == 0) {
         fprintf(stderr, "Iteration %d: error is %f\n", iter + 1, C);
       } else {
-        elapsed = (float)(end - start) / CLOCKS_PER_SEC;
+        elapsed = static_cast<float>(end - start) / CLOCKS_PER_SEC;
         total_time += elapsed;
         residual_time += elapsed;
         fprintf(stderr,
@@ -977,7 +977,7 @@ bool TSNEState::step_by_impl(const int step) {
     }
   }
   end = clock();
-  elapsed = (float)(end - start) / CLOCKS_PER_SEC;
+  elapsed = static_cast<float>(end - start) / CLOCKS_PER_SEC;
   total_time += elapsed;
   residual_time += elapsed;
 

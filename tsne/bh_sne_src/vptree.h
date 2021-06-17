@@ -155,7 +155,9 @@ class VpTree {
     if (upper - lower > 1) {  // if we did not arrive at leaf yet
 
       // Choose an arbitrary point and move it to the start
-      int i = (int)((double)rand() / RAND_MAX * (upper - lower - 1)) + lower;
+      int i = static_cast<int>(static_cast<double>(rand()) / RAND_MAX *
+                               (upper - lower - 1)) +
+              lower;
       std::swap(_items[lower], _items[i]);
 
       // Partition around the median distance
