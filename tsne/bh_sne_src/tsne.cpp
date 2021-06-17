@@ -99,14 +99,12 @@ struct TSNEState {
         gains{gains} {
   }
 
- public:
   bool step_by(int step);
 
  private:
   template <int NDIMS>
   bool step_by_impl(int step);
 
- private:
   const int N;
   double* const Y;
   const int no_dims;
