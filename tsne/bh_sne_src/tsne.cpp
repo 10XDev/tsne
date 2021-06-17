@@ -442,7 +442,7 @@ void computeGaussianPerplexity(const double* const X,
   }
 
   // Build ball tree on data set
-  VpTree<unsigned int, euclidean_distance> tree((euclidean_distance(D, X)));
+  VpTree<unsigned int, euclidean_distance> tree(euclidean_distance(D, X));
   vector<unsigned int> obj_X(N);
   for (int n = 0; n < N; n++) {
     obj_X[n] = n;

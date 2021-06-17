@@ -36,12 +36,15 @@
 
 #if defined _WIN32 || defined __CYGWIN__
 #ifdef __GNUC__
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __attribute__((dllexport))
 #else
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __declspec(dllexport)
 #endif
 #else
 #if __GNUC__ >= 4
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __attribute__((visibility("default")))
 #else
 #define DLL_PUBLIC

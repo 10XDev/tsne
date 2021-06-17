@@ -48,6 +48,10 @@ class alignas(16) Cell {
  public:
   Cell() = default;
   Cell(const double* inp_corner, const double* inp_width);
+  Cell(const Cell&) = delete;
+  Cell(Cell&&) noexcept = default;
+  Cell& operator=(const Cell&) = delete;
+  Cell& operator=(Cell&&) noexcept = default;
   ~Cell() = default;
 
   [[nodiscard]] double getCorner(unsigned int d) const;

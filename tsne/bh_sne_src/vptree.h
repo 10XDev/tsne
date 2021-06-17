@@ -54,8 +54,11 @@ class euclidean_distance final {
  public:
   explicit euclidean_distance(int D, const double* data) : D(D), data(data) {
   }
-  euclidean_distance(euclidean_distance&&) = default;
   euclidean_distance(const euclidean_distance&) = default;
+  euclidean_distance(euclidean_distance&&) = delete;
+  euclidean_distance& operator=(const euclidean_distance&) = delete;
+  euclidean_distance& operator=(euclidean_distance&&) = delete;
+  ~euclidean_distance() = default;
   double operator()(const unsigned int t1, const unsigned int t2) const {
     double dd = .0;
     const double* x1 = data + t1 * D;
@@ -75,7 +78,9 @@ class VpTree {
   explicit VpTree(Distance&& distance) : distance(distance){};
 
   VpTree(const VpTree<T, Distance>&) = delete;
+  VpTree(VpTree<T, Distance>&&) noexcept = default;
   VpTree& operator=(const VpTree<T, Distance>&) = delete;
+  VpTree& operator=(VpTree<T, Distance>&&) noexcept = default;
 
   // Destructor
   ~VpTree() = default;

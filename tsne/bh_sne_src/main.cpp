@@ -54,8 +54,8 @@ bool load_data(const char* dat_file,
                int* rand_seed,
                int* max_iter) {
   // Open file, read first 2 integers, allocate memory, and read the data
-  FILE* h;
-  if ((h = fopen(dat_file, "r+b")) == nullptr) {
+  auto* h = fopen(dat_file, "r+b");
+  if (h == nullptr) {
     fprintf(stderr, "Error: could not open data file.\n");
     return false;
   }
