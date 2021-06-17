@@ -183,7 +183,7 @@ void symmetrizeMatrix(vector<unsigned int>* row_P,
                       vector<double>* val_P,
                       int N);
 
-static inline double sign(const double x) {
+inline double sign(const double x) {
   return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0));
 }
 
