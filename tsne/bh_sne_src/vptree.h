@@ -48,19 +48,19 @@
 #pragma GCC visibility push(hidden)
 
 class euclidean_distance final {
-  const int _D;
+  const int D;
   const double* const data;
 
  public:
-  explicit euclidean_distance(int D, const double* data) : _D(D), data(data) {
+  explicit euclidean_distance(int D, const double* data) : D(D), data(data) {
   }
   euclidean_distance(euclidean_distance&&) = default;
   euclidean_distance(const euclidean_distance&) = default;
   double operator()(const unsigned int t1, const unsigned int t2) const {
     double dd = .0;
-    const double* x1 = data + t1 * _D;
-    const double* x2 = data + t2 * _D;
-    for (int d = 0; d < _D; d++) {
+    const double* x1 = data + t1 * D;
+    const double* x2 = data + t2 * D;
+    for (int d = 0; d < D; d++) {
       double diff = (x1[d] - x2[d]);
       dd += diff * diff;
     }
