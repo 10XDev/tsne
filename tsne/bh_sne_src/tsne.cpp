@@ -733,7 +733,7 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
                                      const int stop_lying_iter,
                                      const int mom_switch_iter) {
   // Set random seed
-  if (skip_random_init != true) {
+  if (!skip_random_init) {
     if (rand_seed >= 0) {
       fprintf(stderr, "Using random seed: %d\n", rand_seed);
       srand(static_cast<unsigned int>(rand_seed));
@@ -753,7 +753,7 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
           NDIMS,
           perplexity,
           theta);
-  bool exact = (theta == .0) ? true : false;
+  bool exact = theta == .0;
 
   fprintf(stderr,
           "Using max_iter = %d, stop_lying_iter = %d, mom_switch_iter = %d\n",
@@ -904,7 +904,7 @@ bool TSNEState::step_by_impl(const int step) {
   double eta = 200.0;
 
   // Extract state
-  bool exact = (theta == .0) ? true : false;
+  bool exact = theta == .0;
   clock_t start = clock();
   clock_t end;
   float elapsed;
