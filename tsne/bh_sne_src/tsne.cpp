@@ -204,8 +204,9 @@ void computeGradient(const vector<unsigned int>& inp_row_P,
   vector<double> neg_f(N * NDIMS);
   auto pos_f = tree.computeEdgeForces(
       inp_row_P.data(), inp_col_P.data(), inp_val_P.data(), N);
-  for (int n = 0; n < N; n++)
+  for (int n = 0; n < N; n++) {
     tree.computeNonEdgeForces(n, theta, neg_f.data() + n * NDIMS, &sum_Q);
+  }
 
   // Compute final t-SNE gradient
   vector<double>& dC = *_dC;
@@ -277,13 +278,15 @@ double evaluateError(const vector<double>& P,
       if (n != m) {
         Q[nN + m] = 1 / (1 + DD[nN + m]);
         sum_Q += Q[nN + m];
-      } else
+      } else {
         Q[nN + m] = DBL_MIN;
+      }
     }
     nN += N;
   }
-  for (int i = 0; i < N * N; i++)
+  for (int i = 0; i < N * N; i++) {
     Q[i] /= sum_Q;
+  }
 
   // Sum t-SNE error
   double C = .0;
@@ -307,8 +310,9 @@ double evaluateError(const vector<unsigned int>& row_P,
   double sum_Q = .0;
   {
     SPTree<NDIMS> tree(Y, N);
-    for (int n = 0; n < N; n++)
+    for (int n = 0; n < N; n++) {
       tree.computeNonEdgeForces(n, theta, buff.data(), &sum_Q);
+    }
   }
 
   // Loop over all edges to compute t-SNE error
@@ -319,12 +323,15 @@ double evaluateError(const vector<unsigned int>& row_P,
     for (int i = row_P[n]; i < row_P[n + 1]; i++) {
       Q = .0;
       ind2 = col_P[i] * NDIMS;
-      for (int d = 0; d < NDIMS; d++)
+      for (int d = 0; d < NDIMS; d++) {
         buff[d] = Y[ind1 + d];
-      for (int d = 0; d < NDIMS; d++)
+      }
+      for (int d = 0; d < NDIMS; d++) {
         buff[d] -= Y[ind2 + d];
-      for (int d = 0; d < NDIMS; d++)
+      }
+      for (int d = 0; d < NDIMS; d++) {
         Q += buff[d] * buff[d];
+      }
       Q = (1.0 / (1.0 + Q)) / sum_Q;
       C += val_P[i] * log((val_P[i] + FLT_MIN) / (Q + FLT_MIN));
     }
@@ -358,17 +365,20 @@ void computeGaussianPerplexity(const double* const X,
     int iter = 0;
     while (!found && iter < 200) {
       // Compute Gaussian kernel row
-      for (int m = 0; m < N; m++)
+      for (int m = 0; m < N; m++) {
         P[nN + m] = exp(-beta * DD[nN + m]);
+      }
       P[nN + n] = DBL_MIN;
 
       // Compute entropy of current row
       sum_P = DBL_MIN;
-      for (int m = 0; m < N; m++)
+      for (int m = 0; m < N; m++) {
         sum_P += P[nN + m];
+      }
       double H = 0.0;
-      for (int m = 0; m < N; m++)
+      for (int m = 0; m < N; m++) {
         H += beta * (DD[nN + m] * P[nN + m]);
+      }
       H = (H / sum_P) + log(sum_P);
 
       // Evaluate whether the entropy is within the tolerance level
@@ -378,16 +388,18 @@ void computeGaussianPerplexity(const double* const X,
       } else {
         if (Hdiff > 0) {
           min_beta = beta;
-          if (max_beta == DBL_MAX || max_beta == -DBL_MAX)
+          if (max_beta == DBL_MAX || max_beta == -DBL_MAX) {
             beta *= 2.0;
-          else
+          } else {
             beta = (beta + max_beta) / 2.0;
+          }
         } else {
           max_beta = beta;
-          if (min_beta == -DBL_MAX || min_beta == DBL_MAX)
+          if (min_beta == -DBL_MAX || min_beta == DBL_MAX) {
             beta /= 2.0;
-          else
+          } else {
             beta = (beta + min_beta) / 2.0;
+          }
         }
       }
 
@@ -396,8 +408,9 @@ void computeGaussianPerplexity(const double* const X,
     }
 
     // Row normalize P
-    for (int m = 0; m < N; m++)
+    for (int m = 0; m < N; m++) {
       P[nN + m] /= sum_P;
+    }
     nN += N;
   }
 }
@@ -411,8 +424,9 @@ void computeGaussianPerplexity(const double* const X,
                                vector<double>* _val_P,
                                const double perplexity,
                                const int K) {
-  if (perplexity > K)
+  if (perplexity > K) {
     fprintf(stderr, "Perplexity should be lower than K!\n");
+  }
 
   // Allocate the memory we need
   _row_P->resize(N + 1);
@@ -423,14 +437,16 @@ void computeGaussianPerplexity(const double* const X,
   vector<double>& val_P = *_val_P;
   vector<double> cur_P(N - 1);
   row_P[0] = 0;
-  for (int n = 0; n < N; n++)
+  for (int n = 0; n < N; n++) {
     row_P[n + 1] = row_P[n] + (unsigned int)K;
+  }
 
   // Build ball tree on data set
   VpTree<unsigned int, euclidean_distance> tree((euclidean_distance(D, X)));
   vector<unsigned int> obj_X(N);
-  for (int n = 0; n < N; n++)
+  for (int n = 0; n < N; n++) {
     obj_X[n] = n;
+  }
   tree.create(obj_X);
 
   // Loop over all points to find nearest neighbors
@@ -440,8 +456,9 @@ void computeGaussianPerplexity(const double* const X,
   indices.reserve(N);
   distances.reserve(N);
   for (int n = 0; n < N; n++) {
-    if (n % 10000 == 0)
+    if (n % 10000 == 0) {
       fprintf(stderr, " - point %d of %d\n", n, N);
+    }
 
     // Find nearest neighbors
     indices.clear();
@@ -460,16 +477,19 @@ void computeGaussianPerplexity(const double* const X,
     double sum_P;
     while (!found && iter < 200) {
       // Compute Gaussian kernel row
-      for (int m = 0; m < K; m++)
+      for (int m = 0; m < K; m++) {
         cur_P[m] = exp(-beta * distances[m + 1] * distances[m + 1]);
+      }
 
       // Compute entropy of current row
       sum_P = DBL_MIN;
-      for (int m = 0; m < K; m++)
+      for (int m = 0; m < K; m++) {
         sum_P += cur_P[m];
+      }
       double H = .0;
-      for (int m = 0; m < K; m++)
+      for (int m = 0; m < K; m++) {
         H += beta * (distances[m + 1] * distances[m + 1] * cur_P[m]);
+      }
       H = (H / sum_P) + log(sum_P);
 
       // Evaluate whether the entropy is within the tolerance level
@@ -479,16 +499,18 @@ void computeGaussianPerplexity(const double* const X,
       } else {
         if (Hdiff > 0) {
           min_beta = beta;
-          if (max_beta == DBL_MAX || max_beta == -DBL_MAX)
+          if (max_beta == DBL_MAX || max_beta == -DBL_MAX) {
             beta *= 2.0;
-          else
+          } else {
             beta = (beta + max_beta) / 2.0;
+          }
         } else {
           max_beta = beta;
-          if (min_beta == -DBL_MAX || min_beta == DBL_MAX)
+          if (min_beta == -DBL_MAX || min_beta == DBL_MAX) {
             beta /= 2.0;
-          else
+          } else {
             beta = (beta + min_beta) / 2.0;
+          }
         }
       }
 
@@ -497,8 +519,9 @@ void computeGaussianPerplexity(const double* const X,
     }
 
     // Row-normalize current row of P and store in matrix
-    for (unsigned int m = 0; m < K; m++)
+    for (unsigned int m = 0; m < K; m++) {
       cur_P[m] /= sum_P;
+    }
     for (unsigned int m = 0; m < K; m++) {
       col_P[row_P[n] + m] = indices[m + 1];
       val_P[row_P[n] + m] = cur_P[m];
@@ -523,20 +546,22 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
       // Check whether element (col_P[i], n) is present
       bool present = false;
       for (int m = row_P[col_P[i]]; m < row_P[col_P[i] + 1]; m++) {
-        if (col_P[m] == n)
+        if (col_P[m] == n) {
           present = true;
+        }
       }
-      if (present)
+      if (present) {
         row_counts[n]++;
-      else {
+      } else {
         row_counts[n]++;
         row_counts[col_P[i]]++;
       }
     }
   }
   int no_elem = 0;
-  for (int n = 0; n < N; n++)
+  for (int n = 0; n < N; n++) {
     no_elem += row_counts[n];
+  }
 
   // Allocate memory for symmetrized matrix
   vector<unsigned int> sym_row_P(N + 1);
@@ -545,8 +570,9 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
 
   // Construct new row indices for symmetric matrix
   sym_row_P[0] = 0;
-  for (int n = 0; n < N; n++)
+  for (int n = 0; n < N; n++) {
     sym_row_P[n + 1] = sym_row_P[n] + (unsigned int)row_counts[n];
+  }
 
   // Fill the result matrix
   vector<int> offset(N);
@@ -580,15 +606,17 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
       // Update offsets
       if (!present || (present && n <= col_P[i])) {
         offset[n]++;
-        if (col_P[i] != n)
+        if (col_P[i] != n) {
           offset[col_P[i]]++;
+        }
       }
     }
   }
 
   // Divide the result by two
-  for (int i = 0; i < no_elem; i++)
+  for (int i = 0; i < no_elem; i++) {
     sym_val_P[i] /= 2.0;
+  }
 
   // Return symmetrized matrices
   *_row_P = move(sym_row_P);
@@ -744,11 +772,13 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
   double max_X = .0;
   for (int i = 0; i < N * D; i++) {
     auto ax = abs(X[i]);
-    if (ax > max_X)
+    if (ax > max_X) {
       max_X = ax;
+    }
   }
-  for (int i = 0; i < N * D; i++)
+  for (int i = 0; i < N * D; i++) {
     X[i] /= max_X;
+  }
 
   // Compute input similarities for exact t-SNE
   vector<double> P;
@@ -774,10 +804,12 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
       nN += N;
     }
     double sum_P = .0;
-    for (int i = 0; i < N * N; i++)
+    for (int i = 0; i < N * N; i++) {
       sum_P += P[i];
-    for (int i = 0; i < N * N; i++)
+    }
+    for (int i = 0; i < N * N; i++) {
       P[i] /= sum_P;
+    }
   } else {
     // Compute input similarities for approximate t-SNE
 
@@ -794,20 +826,24 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
     // Symmetrize input similarities
     symmetrizeMatrix(&row_P, &col_P, &val_P, N);
     double sum_P = .0;
-    for (int i = 0; i < row_P[N]; i++)
+    for (int i = 0; i < row_P[N]; i++) {
       sum_P += val_P[i];
-    for (int i = 0; i < row_P[N]; i++)
+    }
+    for (int i = 0; i < row_P[N]; i++) {
       val_P[i] /= sum_P;
+    }
   }
   end = clock();
 
   // Lie about the P-values
   if (exact) {
-    for (int i = 0; i < N * N; i++)
+    for (int i = 0; i < N * N; i++) {
       P[i] *= 12.0;
+    }
   } else {
-    for (int i = 0; i < row_P[N]; i++)
+    for (int i = 0; i < row_P[N]; i++) {
       val_P[i] *= 12.0;
+    }
   }
 
   // Initialize solution (randomly or with given coordinates)
@@ -822,18 +858,19 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
   }
 
   // Perform main training loop
-  if (exact)
+  if (exact) {
     fprintf(stderr,
             "Input similarities computed in %4.2f seconds!\nLearning "
             "embedding...\n",
             static_cast<float>(end - start) / CLOCKS_PER_SEC);
-  else
+  } else {
     fprintf(stderr,
             "Input similarities computed in %4.2f seconds (sparsity = "
             "%f)!\nLearning embedding...\n",
             static_cast<float>(end - start) / CLOCKS_PER_SEC,
             static_cast<double>(row_P[N]) /
                 (static_cast<double>(N) * static_cast<double>(N)));
+  }
 
   return std::make_unique<TSNEState>(N,
                                      Y,
@@ -869,24 +906,30 @@ bool TSNEState::step_by_impl(const int step) {
 
   for (; iter < iter_until; iter++) {
     // Compute (approximate) gradient
-    if (exact)
+    if (exact) {
       computeExactGradient<NDIMS>(P, Y, N, &dY);
-    else
+    } else {
       computeGradient<NDIMS>(row_P, col_P, val_P, Y, N, &dY, theta);
+    }
 
     // Update gains
-    for (int i = 0; i < N * NDIMS; i++)
+    for (int i = 0; i < N * NDIMS; i++) {
       gains[i] =
           (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
-    for (int i = 0; i < N * NDIMS; i++)
-      if (gains[i] < .01)
+    }
+    for (int i = 0; i < N * NDIMS; i++) {
+      if (gains[i] < .01) {
         gains[i] = .01;
+      }
+    }
 
     // Perform gradient update (with momentum and gains)
-    for (int i = 0; i < N * NDIMS; i++)
+    for (int i = 0; i < N * NDIMS; i++) {
       uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-    for (int i = 0; i < N * NDIMS; i++)
+    }
+    for (int i = 0; i < N * NDIMS; i++) {
       Y[i] = Y[i] + uY[i];
+    }
 
     // Make solution zero-mean
     zeroMean<NDIMS>(Y, N);
@@ -894,15 +937,18 @@ bool TSNEState::step_by_impl(const int step) {
     // Stop lying about the P-values after a while, and switch momentum
     if (iter == stop_lying_iter) {
       if (exact) {
-        for (int i = 0; i < N * N; i++)
+        for (int i = 0; i < N * N; i++) {
           P[i] /= 12.0;
+        }
       } else {
-        for (int i = 0; i < row_P[N]; i++)
+        for (int i = 0; i < row_P[N]; i++) {
           val_P[i] /= 12.0;
+        }
       }
     }
-    if (iter == mom_switch_iter)
+    if (iter == mom_switch_iter) {
       momentum = final_momentum;
+    }
 
     // Print out progress
     if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
@@ -914,9 +960,9 @@ bool TSNEState::step_by_impl(const int step) {
         // doing approximate computation here!
         C = evaluateError<NDIMS>(row_P, col_P, val_P, Y, N, theta);
       }
-      if (iter == 0)
+      if (iter == 0) {
         fprintf(stderr, "Iteration %d: error is %f\n", iter + 1, C);
-      else {
+      } else {
         elapsed = (float)(end - start) / CLOCKS_PER_SEC;
         total_time += elapsed;
         residual_time += elapsed;
@@ -1041,8 +1087,9 @@ bool DLL_PUBLIC step_tsne_by(struct TSNE* const tsne, const int step) {
 }
 
 void DLL_PUBLIC free_tsne(struct TSNE* const tsne) {
-  if (tsne == nullptr)
+  if (tsne == nullptr) {
     return;
+  }
   delete reinterpret_cast<TSNEState*>(tsne);
 }
 

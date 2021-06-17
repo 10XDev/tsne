@@ -63,8 +63,9 @@ bool load_data(const char* dat_file,
   fread(max_iter, sizeof(int), 1, h);       // maximum number of iterations
   data->resize(*d * *n);
   fread(data->data(), sizeof(double), *n * *d, h);  // the data
-  if (!feof(h))
+  if (!feof(h)) {
     fread(rand_seed, sizeof(int), 1, h);  // random seed
+  }
   fclose(h);
   fprintf(stderr, "Read the %i x %i data matrix successfully!\n", *n, *d);
   return true;
@@ -143,8 +144,9 @@ int main(int argc, char* argv[]) {
     // Make dummy landmarks
     N = origN;
     vector<int> landmarks(N);
-    for (int n = 0; n < N; n++)
+    for (int n = 0; n < N; n++) {
       landmarks[n] = n;
+    }
 
     // Now fire up the SNE implementation
     vector<double> Y(N * no_dims);

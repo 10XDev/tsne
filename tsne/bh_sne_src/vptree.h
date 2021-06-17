@@ -187,8 +187,9 @@ class VpTree {
               const T& target,
               int k,
               std::priority_queue<HeapItem>& heap) {
-    if (node == nullptr)
+    if (node == nullptr) {
       return;  // indicates that we're done here
+    }
 
     // Compute distance between target and current node
     double dist = distance(_items[node->index], target);
