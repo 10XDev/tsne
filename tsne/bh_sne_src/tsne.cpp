@@ -190,7 +190,7 @@ template <int NDIMS>
 void computeGradient(const vector<unsigned int>& inp_row_P,
                      const vector<unsigned int>& inp_col_P,
                      const vector<double>& inp_val_P,
-                     double* const Y,
+                     const double* const Y,
                      const int N,
                      vector<double>* const _dC,
                      const double theta) {
