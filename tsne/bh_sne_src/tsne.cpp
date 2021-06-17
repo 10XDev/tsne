@@ -320,7 +320,7 @@ double evaluateError(const vector<unsigned int>& row_P,
   double C = .0, Q;
   for (int n = 0; n < N; n++) {
     ind1 = n * NDIMS;
-    for (int i = row_P[n]; i < row_P[n + 1]; i++) {
+    for (unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
       Q = .0;
       ind2 = col_P[i] * NDIMS;
       for (int d = 0; d < NDIMS; d++) {
@@ -542,10 +542,10 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
   // Count number of elements and row counts of symmetric matrix
   vector<int> row_counts(N);
   for (int n = 0; n < N; n++) {
-    for (int i = row_P[n]; i < row_P[n + 1]; i++) {
+    for (unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
       // Check whether element (col_P[i], n) is present
       bool present = false;
-      for (int m = row_P[col_P[i]]; m < row_P[col_P[i] + 1]; m++) {
+      for (unsigned int m = row_P[col_P[i]]; m < row_P[col_P[i] + 1]; m++) {
         if (col_P[m] == n) {
           present = true;
         }
@@ -710,7 +710,6 @@ double randn() {
   } while ((radius >= 1.0) || (radius == 0.0));
   radius = sqrt(-2 * log(radius) / radius);
   x *= radius;
-  y *= radius;
   return x;
 }
 
