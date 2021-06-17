@@ -100,11 +100,11 @@ struct TSNEState {
   }
 
  public:
-  bool step_by(int n);
+  bool step_by(int step);
 
  private:
   template <int NDIMS>
-  bool step_by_impl(int n);
+  bool step_by_impl(int step);
 
  private:
   const int N;
