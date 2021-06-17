@@ -103,12 +103,12 @@ class SPTree {
 
   Node node;
 
-  SPTree(const SPTree<NDims>&) = delete;
-  SPTree& operator=(const SPTree<NDims>&) = delete;
-
  public:
   SPTree() = default;
-  SPTree(SPTree<NDims>&&) = default;
+  SPTree(SPTree<NDims>&&) noexcept = default;
+  SPTree(const SPTree<NDims>&) = delete;
+  SPTree& operator=(SPTree<NDims>&&) noexcept = default;
+  SPTree& operator=(const SPTree<NDims>&) = delete;
   SPTree(const double* inp_data, unsigned int N);
   ~SPTree() = default;
   bool isCorrect() const;

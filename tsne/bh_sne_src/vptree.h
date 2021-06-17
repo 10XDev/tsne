@@ -74,6 +74,9 @@ class VpTree {
   // Default constructor
   explicit VpTree(Distance&& distance) : distance(distance){};
 
+  VpTree(const VpTree<T, Distance>&) = delete;
+  VpTree& operator=(const VpTree<T, Distance>&) = delete;
+
   // Destructor
   ~VpTree() = default;
 
@@ -119,13 +122,16 @@ class VpTree {
   // Single node of a VP tree (has a point and radius; left children are closer
   // to point than the radius)
   struct Node {
-    int index;                    // index of point in node
-    double threshold;             // radius(?)
+    int index = 0;                // index of point in node
+    double threshold = 0;         // radius(?)
     std::unique_ptr<Node> left;   // points closer by than threshold
     std::unique_ptr<Node> right;  // points farther away than threshold
 
-    Node() : index(0), threshold(0.) {
-    }
+    Node() = default;
+    Node(Node&&) noexcept = default;
+    Node(const Node&) = delete;
+    Node& operator=(Node&&) noexcept = default;
+    Node& operator=(const Node&) = delete;
 
     ~Node() = default;
   };
@@ -245,9 +251,6 @@ class VpTree {
       }
     }
   }
-
-  VpTree(const VpTree<T, Distance>&) = delete;
-  VpTree& operator=(const VpTree<T, Distance>&) = delete;
 };
 
 #pragma GCC visibility pop

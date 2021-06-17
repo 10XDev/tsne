@@ -37,7 +37,11 @@
 
 #include "tsne.h"
 
-using namespace std;
+using std::fclose;
+using std::feof;
+using std::fprintf;
+using std::fread;
+using std::vector;
 
 // Function that loads data from a t-SNE file
 bool load_data(const char* dat_file,

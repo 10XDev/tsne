@@ -158,8 +158,9 @@ bool SPTree<NDims>::Node::insert(const double* data, unsigned int new_index) {
 
   // Online update of cumulative size and center-of-mass
   ++cum_size;
-  double mult1 = (double)(cum_size - 1) / (double)cum_size;
-  double mult2 = 1.0 / (double)cum_size;
+  double mult1 =
+      static_cast<double>(cum_size - 1) / static_cast<double>(cum_size);
+  double mult2 = 1.0 / static_cast<double>(cum_size);
 
   for (unsigned int d = 0; d < NDims; d++) {
     center_of_mass[d] = center_of_mass[d] * mult1 + mult2 * point[d];
