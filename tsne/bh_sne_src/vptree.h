@@ -48,19 +48,22 @@
 #pragma GCC visibility push(hidden)
 
 class euclidean_distance final {
-  const int _D;
+  const int D;
   const double* const data;
 
  public:
-  explicit euclidean_distance(int D, const double* data) : _D(D), data(data) {
+  explicit euclidean_distance(int D, const double* data) : D(D), data(data) {
   }
-  euclidean_distance(euclidean_distance&&) = default;
   euclidean_distance(const euclidean_distance&) = default;
+  euclidean_distance(euclidean_distance&&) = delete;
+  euclidean_distance& operator=(const euclidean_distance&) = delete;
+  euclidean_distance& operator=(euclidean_distance&&) = delete;
+  ~euclidean_distance() = default;
   double operator()(const unsigned int t1, const unsigned int t2) const {
     double dd = .0;
-    const double* x1 = data + t1 * _D;
-    const double* x2 = data + t2 * _D;
-    for (int d = 0; d < _D; d++) {
+    const double* x1 = data + t1 * D;
+    const double* x2 = data + t2 * D;
+    for (int d = 0; d < D; d++) {
       double diff = (x1[d] - x2[d]);
       dd += diff * diff;
     }
@@ -74,6 +77,11 @@ class VpTree {
   // Default constructor
   explicit VpTree(Distance&& distance) : distance(distance){};
 
+  VpTree(const VpTree<T, Distance>&) = delete;
+  VpTree(VpTree<T, Distance>&&) noexcept = default;
+  VpTree& operator=(const VpTree<T, Distance>&) = delete;
+  VpTree& operator=(VpTree<T, Distance>&&) noexcept = default;
+
   // Destructor
   ~VpTree() = default;
 
@@ -84,7 +92,9 @@ class VpTree {
   }
 
   // Function that uses the tree to find the k nearest neighbors of target
-  void search(const T& target, int k, std::vector<T>* results,
+  void search(const T& target,
+              int k,
+              std::vector<T>* results,
               std::vector<double>* distances) {
     // Use a priority queue to store intermediate results on
     std::priority_queue<HeapItem> heap;
@@ -117,13 +127,16 @@ class VpTree {
   // Single node of a VP tree (has a point and radius; left children are closer
   // to point than the radius)
   struct Node {
-    int index;                    // index of point in node
-    double threshold;             // radius(?)
+    int index = 0;                // index of point in node
+    double threshold = 0;         // radius(?)
     std::unique_ptr<Node> left;   // points closer by than threshold
     std::unique_ptr<Node> right;  // points farther away than threshold
 
-    Node() : index(0), threshold(0.) {
-    }
+    Node() = default;
+    Node(Node&&) noexcept = default;
+    Node(const Node&) = delete;
+    Node& operator=(Node&&) noexcept = default;
+    Node& operator=(const Node&) = delete;
 
     ~Node() = default;
   };
@@ -153,17 +166,21 @@ class VpTree {
     if (upper - lower > 1) {  // if we did not arrive at leaf yet
 
       // Choose an arbitrary point and move it to the start
-      int i = (int)((double)rand() / RAND_MAX * (upper - lower - 1)) + lower;
+      int i = static_cast<int>(static_cast<double>(rand()) / RAND_MAX *
+                               (upper - lower - 1)) +
+              lower;
       std::swap(_items[lower], _items[i]);
 
       // Partition around the median distance
       int median = (upper + lower) / 2;
       auto& lower_item = _items[lower];
-      std::nth_element(
-          _items.begin() + lower + 1, _items.begin() + median,
-          _items.begin() + upper, [this, lower_item](auto& x, auto& y) {
-            return distance(lower_item, x) < distance(lower_item, y);
-          });
+      std::nth_element(_items.begin() + lower + 1,
+                       _items.begin() + median,
+                       _items.begin() + upper,
+                       [this, lower_item](auto& x, auto& y) {
+                         return distance(lower_item, x) <
+                                distance(lower_item, y);
+                       });
 
       // Threshold of the new node will be the distance to the median
       node->threshold = distance(lower_item, _items[median]);
@@ -179,10 +196,13 @@ class VpTree {
   }
 
   // Helper function that searches the tree
-  void search(const Node* node, const T& target, int k,
+  void search(const Node* node,
+              const T& target,
+              int k,
               std::priority_queue<HeapItem>& heap) {
-    if (node == nullptr)
+    if (node == nullptr) {
       return;  // indicates that we're done here
+    }
 
     // Compute distance between target and current node
     double dist = distance(_items[node->index], target);
@@ -236,9 +256,6 @@ class VpTree {
       }
     }
   }
-
-  VpTree(const VpTree<T, Distance>&) = delete;
-  VpTree& operator=(const VpTree<T, Distance>&) = delete;
 };
 
 #pragma GCC visibility pop

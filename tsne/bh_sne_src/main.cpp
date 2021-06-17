@@ -37,15 +37,25 @@
 
 #include "tsne.h"
 
-using namespace std;
+using std::fclose;
+using std::feof;
+using std::fprintf;
+using std::fread;
+using std::vector;
 
 // Function that loads data from a t-SNE file
-bool load_data(const char* dat_file, vector<double>* data, int* n, int* d,
-               int* no_dims, double* theta, double* perplexity, int* rand_seed,
+bool load_data(const char* dat_file,
+               vector<double>* data,
+               int* n,
+               int* d,
+               int* no_dims,
+               double* theta,
+               double* perplexity,
+               int* rand_seed,
                int* max_iter) {
   // Open file, read first 2 integers, allocate memory, and read the data
-  FILE* h;
-  if ((h = fopen(dat_file, "r+b")) == nullptr) {
+  auto* h = fopen(dat_file, "r+b");
+  if (h == nullptr) {
     fprintf(stderr, "Error: could not open data file.\n");
     return false;
   }
@@ -57,16 +67,20 @@ bool load_data(const char* dat_file, vector<double>* data, int* n, int* d,
   fread(max_iter, sizeof(int), 1, h);       // maximum number of iterations
   data->resize(*d * *n);
   fread(data->data(), sizeof(double), *n * *d, h);  // the data
-  if (!feof(h))
+  if (feof(h) == 0) {
     fread(rand_seed, sizeof(int), 1, h);  // random seed
+  }
   fclose(h);
   fprintf(stderr, "Read the %i x %i data matrix successfully!\n", *n, *d);
   return true;
 }
 
 // Function that saves map to a t-SNE file
-void save_data(const char* res_file, const vector<double>& data,
-               const vector<int>& landmarks, const vector<double>& costs, int n,
+void save_data(const char* res_file,
+               const vector<double>& data,
+               const vector<int>& landmarks,
+               const vector<double>& costs,
+               int n,
                int d) {
   // Open file, write first 2 integers and then the data
   FILE* h;
@@ -116,25 +130,48 @@ int main(int argc, char* argv[]) {
   const char* res_file_c = res_file.c_str();
 
   // Define some variables
-  int origN, N, D, no_dims, max_iter;
-  double perplexity, theta;
+  int origN;
+  int N;
+  int D;
+  int no_dims;
+  int max_iter;
+  double perplexity;
+  double theta;
   vector<double> data;
   int rand_seed = -1;
 
   // Read the parameters and the dataset
-  if (load_data(dat_file_c, &data, &origN, &D, &no_dims, &theta, &perplexity,
-                &rand_seed, &max_iter)) {
+  if (load_data(dat_file_c,
+                &data,
+                &origN,
+                &D,
+                &no_dims,
+                &theta,
+                &perplexity,
+                &rand_seed,
+                &max_iter)) {
     // Make dummy landmarks
     N = origN;
     vector<int> landmarks(N);
-    for (int n = 0; n < N; n++)
+    for (int n = 0; n < N; n++) {
       landmarks[n] = n;
+    }
 
     // Now fire up the SNE implementation
     vector<double> Y(N * no_dims);
     vector<double> costs(N);
-    run(data.data(), N, D, Y.data(), no_dims, perplexity, theta, rand_seed,
-        false, nullptr, false, max_iter);
+    run(data.data(),
+        N,
+        D,
+        Y.data(),
+        no_dims,
+        perplexity,
+        theta,
+        rand_seed,
+        false,
+        nullptr,
+        false,
+        max_iter);
 
     // Save the results
     save_data(res_file_c, Y, landmarks, costs, N, no_dims);

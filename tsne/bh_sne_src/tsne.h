@@ -36,12 +36,15 @@
 
 #if defined _WIN32 || defined __CYGWIN__
 #ifdef __GNUC__
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __attribute__((dllexport))
 #else
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __declspec(dllexport)
 #endif
 #else
 #if __GNUC__ >= 4
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __attribute__((visibility("default")))
 #else
 #define DLL_PUBLIC
@@ -50,17 +53,33 @@
 
 extern "C" {
 // stateless t-SNE
-void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
-                    double perplexity, double theta, int rand_seed,
-                    bool skip_random_init, const double* init, bool use_init,
-                    int max_iter = 1000, int stop_lying_iter = 250,
+void DLL_PUBLIC run(double* X,
+                    int N,
+                    int D,
+                    double* Y,
+                    int no_dims,
+                    double perplexity,
+                    double theta,
+                    int rand_seed,
+                    bool skip_random_init,
+                    const double* init,
+                    bool use_init,
+                    int max_iter = 1000,
+                    int stop_lying_iter = 250,
                     int mom_switch_iter = 250);
 // stateful t-SNE
 struct TSNE;
-struct TSNE* DLL_PUBLIC init_tsne(double* X, int N, int D, double* Y,
-                                  int no_dims, double perplexity, double theta,
-                                  int rand_seed, bool skip_random_init,
-                                  const double* init, bool use_init,
+struct TSNE* DLL_PUBLIC init_tsne(double* X,
+                                  int N,
+                                  int D,
+                                  double* Y,
+                                  int no_dims,
+                                  double perplexity,
+                                  double theta,
+                                  int rand_seed,
+                                  bool skip_random_init,
+                                  const double* init,
+                                  bool use_init,
                                   int max_iter = 1000,
                                   int stop_lying_iter = 250,
                                   int mom_switch_iter = 250);
