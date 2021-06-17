@@ -316,8 +316,10 @@ double evaluateError(const vector<unsigned int>& row_P,
   }
 
   // Loop over all edges to compute t-SNE error
-  int ind1, ind2;
-  double C = .0, Q;
+  int ind1;
+  int ind2;
+  double C = .0;
+  double Q;
   for (int n = 0; n < N; n++) {
     ind1 = n * NDIMS;
     for (unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
@@ -702,7 +704,9 @@ void zeroMean(double* const X, const int N, const int D) {
 
 // Generates a Gaussian random number
 double randn() {
-  double x, y, radius;
+  double x;
+  double y;
+  double radius;
   do {
     x = 2 * (rand() / (static_cast<double>(RAND_MAX) + 1)) - 1;
     y = 2 * (rand() / (static_cast<double>(RAND_MAX) + 1)) - 1;
@@ -757,7 +761,8 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
           stop_lying_iter,
           mom_switch_iter);
 
-  clock_t start, end;
+  clock_t start;
+  clock_t end;
 
   // Allocate some memory
   vector<double> dY(N * NDIMS);
@@ -894,12 +899,14 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
 template <int NDIMS>
 bool TSNEState::step_by_impl(const int step) {
   // Set learning parameters
-  double momentum = .5, final_momentum = .8;
+  double momentum = .5;
+  double final_momentum = .8;
   double eta = 200.0;
 
   // Extract state
   bool exact = (theta == .0) ? true : false;
-  clock_t start = clock(), end;
+  clock_t start = clock();
+  clock_t end;
   float elapsed;
   int iter_until = std::min(iter + step, max_iter);
 

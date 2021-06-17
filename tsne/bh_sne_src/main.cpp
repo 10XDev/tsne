@@ -130,8 +130,13 @@ int main(int argc, char* argv[]) {
   const char* res_file_c = res_file.c_str();
 
   // Define some variables
-  int origN, N, D, no_dims, max_iter;
-  double perplexity, theta;
+  int origN;
+  int N;
+  int D;
+  int no_dims;
+  int max_iter;
+  double perplexity;
+  double theta;
   vector<double> data;
   int rand_seed = -1;
 
