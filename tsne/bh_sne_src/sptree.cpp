@@ -272,14 +272,19 @@ unsigned int SPTree<NDims>::Node::getAllIndices(unsigned int* indices,
 
 // Compute non-edge forces using Barnes-Hut algorithm
 template <int NDims>
-void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index, double theta,
-                                         double neg_f[], double* sum_Q) const {
+void SPTree<NDims>::computeNonEdgeForces(unsigned int point_index,
+                                         double theta,
+                                         double neg_f[],
+                                         double* sum_Q) const {
   node.computeNonEdgeForces(data, point_index, theta, neg_f, sum_Q);
 }
 
 template <int NDims>
 [[gnu::hot]] void SPTree<NDims>::Node::computeNonEdgeForces(
-    const double* data, unsigned int point_index, double theta, double neg_f[],
+    const double* data,
+    unsigned int point_index,
+    double theta,
+    double neg_f[],
     double* sum_Q) const {
   // Make sure that we spend no time on empty nodes or self-interactions
   if (cum_size == 0 || (!children && cum_size >= 1 && index == point_index))

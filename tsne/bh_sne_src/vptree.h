@@ -84,7 +84,9 @@ class VpTree {
   }
 
   // Function that uses the tree to find the k nearest neighbors of target
-  void search(const T& target, int k, std::vector<T>* results,
+  void search(const T& target,
+              int k,
+              std::vector<T>* results,
               std::vector<double>* distances) {
     // Use a priority queue to store intermediate results on
     std::priority_queue<HeapItem> heap;
@@ -159,11 +161,13 @@ class VpTree {
       // Partition around the median distance
       int median = (upper + lower) / 2;
       auto& lower_item = _items[lower];
-      std::nth_element(
-          _items.begin() + lower + 1, _items.begin() + median,
-          _items.begin() + upper, [this, lower_item](auto& x, auto& y) {
-            return distance(lower_item, x) < distance(lower_item, y);
-          });
+      std::nth_element(_items.begin() + lower + 1,
+                       _items.begin() + median,
+                       _items.begin() + upper,
+                       [this, lower_item](auto& x, auto& y) {
+                         return distance(lower_item, x) <
+                                distance(lower_item, y);
+                       });
 
       // Threshold of the new node will be the distance to the median
       node->threshold = distance(lower_item, _items[median]);
@@ -179,7 +183,9 @@ class VpTree {
   }
 
   // Helper function that searches the tree
-  void search(const Node* node, const T& target, int k,
+  void search(const Node* node,
+              const T& target,
+              int k,
               std::priority_queue<HeapItem>& heap) {
     if (node == nullptr)
       return;  // indicates that we're done here

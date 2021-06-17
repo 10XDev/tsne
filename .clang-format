@@ -1,6 +1,8 @@
-Language:        Cpp
+Language:      Cpp
 BasedOnStyle:  Google
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-PenaltyBreakComment: 100
+BinPackArguments:  false
+BinPackParameters: false
+ReflowComments:    false

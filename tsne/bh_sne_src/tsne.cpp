@@ -63,11 +63,22 @@ namespace {
 
 struct TSNEState {
  public:
-  TSNEState(int N, double* const Y, int no_dims, double theta, int max_iter,
-            int stop_lying_iter, int mom_switch_iter, int iter,
-            float total_time, float residual_time, vector<double>&& P,
-            vector<unsigned int>&& row_P, vector<unsigned int>&& col_P,
-            vector<double>&& val_P, vector<double>&& dY, vector<double>&& uY,
+  TSNEState(int N,
+            double* const Y,
+            int no_dims,
+            double theta,
+            int max_iter,
+            int stop_lying_iter,
+            int mom_switch_iter,
+            int iter,
+            float total_time,
+            float residual_time,
+            vector<double>&& P,
+            vector<unsigned int>&& row_P,
+            vector<unsigned int>&& col_P,
+            vector<double>&& val_P,
+            vector<double>&& dY,
+            vector<double>&& uY,
             vector<double>&& gains)
       : N{N},
         Y{Y},
@@ -116,39 +127,61 @@ struct TSNEState {
 };
 
 template <int NDIMS>
-void run(double* X, int N, int D, double* Y, double perplexity, double theta,
-         int rand_seed, bool skip_random_init, double* init, bool use_init,
-         int max_iter, int stop_lying_iter, int mom_switch_iter);
+void run(double* X,
+         int N,
+         int D,
+         double* Y,
+         double perplexity,
+         double theta,
+         int rand_seed,
+         bool skip_random_init,
+         double* init,
+         bool use_init,
+         int max_iter,
+         int stop_lying_iter,
+         int mom_switch_iter);
 
 template <int NDIMS>
 void computeGradient(const vector<unsigned int>& inp_row_P,
                      const vector<unsigned int>& inp_col_P,
-                     const vector<double>& inp_val_P, const double* Y, int N,
-                     vector<double>* _dC, double theta);
+                     const vector<double>& inp_val_P,
+                     const double* Y,
+                     int N,
+                     vector<double>* _dC,
+                     double theta);
 template <int D>
-void computeExactGradient(const vector<double>& P, const double* Y, int N,
+void computeExactGradient(const vector<double>& P,
+                          const double* Y,
+                          int N,
                           vector<double>* _dC);
 template <int D>
 double evaluateError(const vector<double>& P, const double* Y, int N);
 template <int NDIMS>
 double evaluateError(const vector<unsigned int>& row_P,
                      const vector<unsigned int>& col_P,
-                     const vector<double>& val_P, const double* Y, int N,
+                     const vector<double>& val_P,
+                     const double* Y,
+                     int N,
                      double theta);
 void zeroMean(double* X, int N, int D);
 template <int D>
 void zeroMean(double* X, int N);
-void computeGaussianPerplexity(const double* X, int N, int D, double* P,
-                               double perplexity);
-void computeGaussianPerplexity(const double* X, int N, int D,
+void computeGaussianPerplexity(
+    const double* X, int N, int D, double* P, double perplexity);
+void computeGaussianPerplexity(const double* X,
+                               int N,
+                               int D,
                                vector<unsigned int>* _row_P,
                                vector<unsigned int>* _col_P,
-                               vector<double>* _val_P, double perplexity,
+                               vector<double>* _val_P,
+                               double perplexity,
                                int K);
 vector<double> computeSquaredEuclideanDistance(const double* X, int N, int D);
 double randn();
-void symmetrizeMatrix(vector<unsigned int>* row_P, vector<unsigned int>* col_P,
-                      vector<double>* val_P, int N);
+void symmetrizeMatrix(vector<unsigned int>* row_P,
+                      vector<unsigned int>* col_P,
+                      vector<double>* val_P,
+                      int N);
 
 static inline double sign(const double x) {
   return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0));
@@ -158,8 +191,10 @@ static inline double sign(const double x) {
 template <int NDIMS>
 void computeGradient(const vector<unsigned int>& inp_row_P,
                      const vector<unsigned int>& inp_col_P,
-                     const vector<double>& inp_val_P, double* const Y,
-                     const int N, vector<double>* const _dC,
+                     const vector<double>& inp_val_P,
+                     double* const Y,
+                     const int N,
+                     vector<double>* const _dC,
                      const double theta) {
   // Construct space-partitioning tree on current map
   SPTree<NDIMS> tree(Y, N);
@@ -167,8 +202,8 @@ void computeGradient(const vector<unsigned int>& inp_row_P,
   // Compute all terms required for t-SNE gradient
   double sum_Q = .0;
   vector<double> neg_f(N * NDIMS);
-  auto pos_f = tree.computeEdgeForces(inp_row_P.data(), inp_col_P.data(),
-                                      inp_val_P.data(), N);
+  auto pos_f = tree.computeEdgeForces(
+      inp_row_P.data(), inp_col_P.data(), inp_val_P.data(), N);
   for (int n = 0; n < N; n++)
     tree.computeNonEdgeForces(n, theta, neg_f.data() + n * NDIMS, &sum_Q);
 
@@ -181,7 +216,9 @@ void computeGradient(const vector<unsigned int>& inp_row_P,
 
 // Compute gradient of the t-SNE cost function (exact)
 template <int D>
-void computeExactGradient(const vector<double>& P, double* const Y, const int N,
+void computeExactGradient(const vector<double>& P,
+                          double* const Y,
+                          const int N,
                           vector<double>* const _dC) {
   // Make sure the current gradient contains zeros
   vector<double>& dC = *_dC;
@@ -225,7 +262,8 @@ void computeExactGradient(const vector<double>& P, double* const Y, const int N,
 
 // Evaluate t-SNE cost function (exactly)
 template <int D>
-double evaluateError(const vector<double>& P, const double* const Y,
+double evaluateError(const vector<double>& P,
+                     const double* const Y,
                      const int N) {
   // Compute the squared Euclidean distance matrix
   vector<double> DD = computeSquaredEuclideanDistance(Y, N, D);
@@ -259,8 +297,10 @@ double evaluateError(const vector<double>& P, const double* const Y,
 template <int NDIMS>
 double evaluateError(const vector<unsigned int>& row_P,
                      const vector<unsigned int>& col_P,
-                     const vector<double>& val_P, const double* const Y,
-                     const int N, const double theta) {
+                     const vector<double>& val_P,
+                     const double* const Y,
+                     const int N,
+                     const double theta) {
   // Get estimate of normalization term
   array<double, NDIMS> buff;
   buff.fill(0);
@@ -295,8 +335,11 @@ double evaluateError(const vector<unsigned int>& row_P,
 }
 
 // Compute input similarities with a fixed perplexity
-void computeGaussianPerplexity(const double* const X, const int N, const int D,
-                               double* const P, const double perplexity) {
+void computeGaussianPerplexity(const double* const X,
+                               const int N,
+                               const int D,
+                               double* const P,
+                               const double perplexity) {
   // Compute the squared Euclidean distance matrix
   vector<double> DD = computeSquaredEuclideanDistance(X, N, D);
 
@@ -360,10 +403,13 @@ void computeGaussianPerplexity(const double* const X, const int N, const int D,
 }
 
 // Compute input similarities with a fixed perplexity using ball trees.
-void computeGaussianPerplexity(const double* const X, const int N, const int D,
+void computeGaussianPerplexity(const double* const X,
+                               const int N,
+                               const int D,
                                vector<unsigned int>* _row_P,
                                vector<unsigned int>* _col_P,
-                               vector<double>* _val_P, const double perplexity,
+                               vector<double>* _val_P,
+                               const double perplexity,
                                const int K) {
   if (perplexity > K)
     fprintf(stderr, "Perplexity should be lower than K!\n");
@@ -462,7 +508,8 @@ void computeGaussianPerplexity(const double* const X, const int N, const int D,
 
 // Symmetrizes a sparse matrix
 void symmetrizeMatrix(vector<unsigned int>* _row_P,
-                      vector<unsigned int>* _col_P, vector<double>* _val_P,
+                      vector<unsigned int>* _col_P,
+                      vector<double>* _val_P,
                       const int N) {
   // Get sparse matrix
   vector<unsigned int>& row_P = *_row_P;
@@ -551,7 +598,8 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
 
 // Compute squared Euclidean distance matrix
 vector<double> computeSquaredEuclideanDistance(const double* const X,
-                                               const int N, const int D) {
+                                               const int N,
+                                               const int D) {
   vector<double> DD(N * N);
   const double* XnD = X;
   for (int n = 0; n < N; ++n, XnD += D) {
@@ -640,11 +688,19 @@ double randn() {
 
 // Initialize t-SNE
 template <int NDIMS>
-unique_ptr<TSNEState> make_tsne_impl(
-    double* const X, const int N, const int D, double* const Y,
-    const double perplexity, const double theta, const int rand_seed,
-    const bool skip_random_init, const double* const init, const bool use_init,
-    const int max_iter, const int stop_lying_iter, const int mom_switch_iter) {
+unique_ptr<TSNEState> make_tsne_impl(double* const X,
+                                     const int N,
+                                     const int D,
+                                     double* const Y,
+                                     const double perplexity,
+                                     const double theta,
+                                     const int rand_seed,
+                                     const bool skip_random_init,
+                                     const double* const init,
+                                     const bool use_init,
+                                     const int max_iter,
+                                     const int stop_lying_iter,
+                                     const int mom_switch_iter) {
   // Set random seed
   if (skip_random_init != true) {
     if (rand_seed >= 0) {
@@ -661,13 +717,18 @@ unique_ptr<TSNEState> make_tsne_impl(
     fprintf(stderr, "Perplexity too large for the number of data points!\n");
     exit(1);
   }
-  fprintf(stderr, "Using no_dims = %d, perplexity = %f, and theta = %f\n",
-          NDIMS, perplexity, theta);
+  fprintf(stderr,
+          "Using no_dims = %d, perplexity = %f, and theta = %f\n",
+          NDIMS,
+          perplexity,
+          theta);
   bool exact = (theta == .0) ? true : false;
 
   fprintf(stderr,
           "Using max_iter = %d, stop_lying_iter = %d, mom_switch_iter = %d\n",
-          max_iter, stop_lying_iter, mom_switch_iter);
+          max_iter,
+          stop_lying_iter,
+          mom_switch_iter);
 
   clock_t start, end;
 
@@ -721,7 +782,13 @@ unique_ptr<TSNEState> make_tsne_impl(
     // Compute input similarities for approximate t-SNE
 
     // Compute asymmetric pairwise input similarities
-    computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity,
+    computeGaussianPerplexity(X,
+                              N,
+                              D,
+                              &row_P,
+                              &col_P,
+                              &val_P,
+                              perplexity,
                               static_cast<int>(3 * perplexity));
 
     // Symmetrize input similarities
@@ -768,10 +835,23 @@ unique_ptr<TSNEState> make_tsne_impl(
             static_cast<double>(row_P[N]) /
                 (static_cast<double>(N) * static_cast<double>(N)));
 
-  return std::make_unique<TSNEState>(
-      N, Y, NDIMS, theta, max_iter, stop_lying_iter, mom_switch_iter, 0, .0, .0,
-      move(P), move(row_P), move(col_P), move(val_P), move(dY), move(uY),
-      move(gains));
+  return std::make_unique<TSNEState>(N,
+                                     Y,
+                                     NDIMS,
+                                     theta,
+                                     max_iter,
+                                     stop_lying_iter,
+                                     mom_switch_iter,
+                                     0,
+                                     .0,
+                                     .0,
+                                     move(P),
+                                     move(row_P),
+                                     move(col_P),
+                                     move(val_P),
+                                     move(dY),
+                                     move(uY),
+                                     move(gains));
 }
 
 // Optimize t-SNE
@@ -842,7 +922,9 @@ bool TSNEState::step_by_impl(const int step) {
         residual_time += elapsed;
         fprintf(stderr,
                 "Iteration %d: error is %f (50 iterations in %4.2f seconds)\n",
-                iter, C, residual_time);
+                iter,
+                C,
+                residual_time);
         residual_time = 0;
       }
       start = clock();
@@ -860,23 +942,49 @@ bool TSNEState::step_by_impl(const int step) {
   return false;
 }
 
-unique_ptr<TSNEState> make_tsne(double* const X, const int N, const int D,
-                                double* const Y, const int no_dims,
-                                const double perplexity, const double theta,
+unique_ptr<TSNEState> make_tsne(double* const X,
+                                const int N,
+                                const int D,
+                                double* const Y,
+                                const int no_dims,
+                                const double perplexity,
+                                const double theta,
                                 const int rand_seed,
                                 const bool skip_random_init,
-                                const double* const init, const bool use_init,
-                                const int max_iter, const int stop_lying_iter,
+                                const double* const init,
+                                const bool use_init,
+                                const int max_iter,
+                                const int stop_lying_iter,
                                 const int mom_switch_iter) {
   switch (no_dims) {
     case 2:
-      return make_tsne_impl<2>(X, N, D, Y, perplexity, theta, rand_seed,
-                               skip_random_init, init, use_init, max_iter,
-                               stop_lying_iter, mom_switch_iter);
+      return make_tsne_impl<2>(X,
+                               N,
+                               D,
+                               Y,
+                               perplexity,
+                               theta,
+                               rand_seed,
+                               skip_random_init,
+                               init,
+                               use_init,
+                               max_iter,
+                               stop_lying_iter,
+                               mom_switch_iter);
     case 3:
-      return make_tsne_impl<3>(X, N, D, Y, perplexity, theta, rand_seed,
-                               skip_random_init, init, use_init, max_iter,
-                               stop_lying_iter, mom_switch_iter);
+      return make_tsne_impl<3>(X,
+                               N,
+                               D,
+                               Y,
+                               perplexity,
+                               theta,
+                               rand_seed,
+                               skip_random_init,
+                               init,
+                               use_init,
+                               max_iter,
+                               stop_lying_iter,
+                               mom_switch_iter);
     default:
       throw "unsupported dimension";
   }
@@ -896,18 +1004,35 @@ bool TSNEState::step_by(int step) {
 }  // namespace
 
 extern "C" {
-struct TSNE* DLL_PUBLIC init_tsne(double* const X, const int N, const int D,
-                                  double* const Y, const int no_dims,
-                                  const double perplexity, const double theta,
+struct TSNE* DLL_PUBLIC init_tsne(double* const X,
+                                  const int N,
+                                  const int D,
+                                  double* const Y,
+                                  const int no_dims,
+                                  const double perplexity,
+                                  const double theta,
                                   const int rand_seed,
                                   const bool skip_random_init,
-                                  const double* const init, const bool use_init,
-                                  const int max_iter, const int stop_lying_iter,
+                                  const double* const init,
+                                  const bool use_init,
+                                  const int max_iter,
+                                  const int stop_lying_iter,
                                   const int mom_switch_iter) {
   assert(no_dims == 2 || no_dims == 3);
-  auto tsne = make_tsne(X, N, D, Y, no_dims, perplexity, theta, rand_seed,
-                        skip_random_init, init, use_init, max_iter,
-                        stop_lying_iter, mom_switch_iter);
+  auto tsne = make_tsne(X,
+                        N,
+                        D,
+                        Y,
+                        no_dims,
+                        perplexity,
+                        theta,
+                        rand_seed,
+                        skip_random_init,
+                        init,
+                        use_init,
+                        max_iter,
+                        stop_lying_iter,
+                        mom_switch_iter);
   return reinterpret_cast<TSNE*>(tsne.release());
 }
 
@@ -921,15 +1046,34 @@ void DLL_PUBLIC free_tsne(struct TSNE* const tsne) {
   delete reinterpret_cast<TSNEState*>(tsne);
 }
 
-void DLL_PUBLIC run(double* const X, const int N, const int D, double* const Y,
-                    const int no_dims, const double perplexity,
-                    const double theta, const int rand_seed,
-                    const bool skip_random_init, const double* const init,
-                    const bool use_init, const int max_iter,
-                    const int stop_lying_iter, const int mom_switch_iter) {
-  auto tsne = make_tsne(X, N, D, Y, no_dims, perplexity, theta, rand_seed,
-                        skip_random_init, init, use_init, max_iter,
-                        stop_lying_iter, mom_switch_iter);
+void DLL_PUBLIC run(double* const X,
+                    const int N,
+                    const int D,
+                    double* const Y,
+                    const int no_dims,
+                    const double perplexity,
+                    const double theta,
+                    const int rand_seed,
+                    const bool skip_random_init,
+                    const double* const init,
+                    const bool use_init,
+                    const int max_iter,
+                    const int stop_lying_iter,
+                    const int mom_switch_iter) {
+  auto tsne = make_tsne(X,
+                        N,
+                        D,
+                        Y,
+                        no_dims,
+                        perplexity,
+                        theta,
+                        rand_seed,
+                        skip_random_init,
+                        init,
+                        use_init,
+                        max_iter,
+                        stop_lying_iter,
+                        mom_switch_iter);
   tsne->step_by(max_iter);
 }
 

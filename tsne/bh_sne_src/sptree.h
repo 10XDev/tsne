@@ -69,13 +69,16 @@ class SPTree {
     bool insert(const double* data, unsigned int new_index);
     void subdivide(const double* data);
     void print(const double* data) const;
-    void computeNonEdgeForces(const double* data, unsigned int point_index,
-                              double theta, double neg_f[],
+    void computeNonEdgeForces(const double* data,
+                              unsigned int point_index,
+                              double theta,
+                              double neg_f[],
                               double* sum_Q) const;
     std::vector<double> computeEdgeForces(const double* data,
                                           const unsigned int* row_P,
                                           const unsigned int* col_P,
-                                          const double* val_P, int N) const;
+                                          const double* val_P,
+                                          int N) const;
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
     void init(const double* inp_corner, const double* inp_width);
 
@@ -110,11 +113,14 @@ class SPTree {
   ~SPTree() = default;
   bool isCorrect() const;
   void getAllIndices(unsigned int* indices) const;
-  void computeNonEdgeForces(unsigned int point_index, double theta,
-                            double neg_f[], double* sum_Q) const;
+  void computeNonEdgeForces(unsigned int point_index,
+                            double theta,
+                            double neg_f[],
+                            double* sum_Q) const;
   std::vector<double> computeEdgeForces(const unsigned int* row_P,
                                         const unsigned int* col_P,
-                                        const double* val_P, int N) const;
+                                        const double* val_P,
+                                        int N) const;
   void print() const;
 
  private:

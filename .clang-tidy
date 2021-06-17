@@ -1,0 +1,8 @@
+---
+Checks: 'clang-diagnostic-*,clang-analyzer-*,bugprone-*,cert-*,-cert-msc*,performance-*,modernize-*,-modernize-use-trailing-return-type,google-*,-modernize-avoid-c-arrays,cppcoreguidelines-*,-cppcoreguidelines-avoid-magic-numbers,-cppcoreguidelines-pro-*,-cppcoreguidelines-init-*,-cppcoreguidelines-owning-memory,-cppcoreguidelines-avoid-c-arrays,readability-*,-readability-magic-numbers,-readability-function-cognitive-complexity,-readability-function-size,-readability-identifier-naming'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle:     file
+...
+
