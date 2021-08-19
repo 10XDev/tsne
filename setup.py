@@ -40,6 +40,7 @@ if sys.platform == 'darwin':
                                       'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                              include_dirs=[
                                  numpy.get_include(), 'tsne/bh_sne_src/'],
+                             define_macros=[('BUILDING_TSNE_DLL', None)],
                              extra_compile_args=extra_compile_args +
                              ['-ffast-math', '-O3', '-std=c++14'],
                              extra_link_args=['-Wl,-framework',
@@ -63,6 +64,7 @@ else:
                                       'tsne/bh_sne_src/tsne.cpp', 'tsne/bh_sne.pyx'],
                              include_dirs=[
                                  numpy.get_include(), 'tsne/bh_sne_src/'],
+                             define_macros=[('BUILDING_TSNE_DLL', None)],
                              extra_compile_args=opt_flags +
                              ['-Wall', '-fPIC', '-std=c++14', '-w'],
                              extra_link_args=ldflags,

@@ -38,7 +38,9 @@
 #include <memory>
 #include <vector>
 
+#ifdef __GNUC__
 #pragma GCC visibility push(hidden)
+#endif
 
 template <int NDims = 2>
 class alignas(16) Cell {
@@ -136,5 +138,8 @@ struct SPTree<0> {
   enum { no_children = 1 };
 };
 
+#ifdef __GNUC__
 #pragma GCC visibility pop
 #endif
+
+#endif  // !defined(SPTREE_H)

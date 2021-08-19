@@ -39,7 +39,9 @@
 #include <cmath>
 #include <cstdio>
 
+#ifdef __GNUC__
 #pragma GCC visibility push(hidden)
+#endif
 
 using std::array;
 using std::make_unique;
@@ -428,4 +430,6 @@ void SPTree<NDims>::Node::print(const double* data) const {
 template class SPTree<2>;
 template class SPTree<3>;
 
+#ifdef __GNUC__
 #pragma GCC visibility pop
+#endif
