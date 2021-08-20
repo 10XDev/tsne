@@ -47,7 +47,9 @@
 #include "sptree.h"
 #include "vptree.h"
 
+#ifdef __GNUC__
 #pragma GCC visibility push(hidden)
+#endif
 
 using std::abs;
 using std::array;
@@ -1054,7 +1056,7 @@ bool TSNEState::step_by(int step) {
 }  // namespace
 
 extern "C" {
-struct TSNE* DLL_PUBLIC init_tsne(double* const X,
+DLL_PUBLIC struct TSNE* init_tsne(double* const X,
                                   const int N,
                                   const int D,
                                   double* const Y,
@@ -1086,18 +1088,18 @@ struct TSNE* DLL_PUBLIC init_tsne(double* const X,
   return reinterpret_cast<TSNE*>(tsne.release());
 }
 
-bool DLL_PUBLIC step_tsne_by(struct TSNE* const tsne, const int step) {
+DLL_PUBLIC bool step_tsne_by(struct TSNE* const tsne, const int step) {
   return reinterpret_cast<TSNEState*>(tsne)->step_by(step);
 }
 
-void DLL_PUBLIC free_tsne(struct TSNE* const tsne) {
+DLL_PUBLIC void free_tsne(struct TSNE* const tsne) {
   if (tsne == nullptr) {
     return;
   }
   delete reinterpret_cast<TSNEState*>(tsne);
 }
 
-void DLL_PUBLIC run(double* const X,
+DLL_PUBLIC void run(double* const X,
                     const int N,
                     const int D,
                     double* const Y,
@@ -1130,4 +1132,6 @@ void DLL_PUBLIC run(double* const X,
 
 }  // extern "C"
 
+#ifdef __GNUC__
 #pragma GCC visibility pop
+#endif

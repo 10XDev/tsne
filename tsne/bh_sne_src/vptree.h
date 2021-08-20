@@ -45,7 +45,9 @@
 #include <queue>
 #include <vector>
 
+#ifdef __GNUC__
 #pragma GCC visibility push(hidden)
+#endif
 
 class euclidean_distance final {
   const int D;
@@ -258,5 +260,8 @@ class VpTree {
   }
 };
 
+#ifdef __GNUC__
 #pragma GCC visibility pop
+#endif
+
 #endif  // !defined(VPTREE_H)
