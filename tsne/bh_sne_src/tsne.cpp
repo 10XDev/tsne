@@ -621,9 +621,9 @@ void symmetrizeMatrix(vector<unsigned int>* _row_P,
   }
 
   // Return symmetrized matrices
-  *_row_P = move(sym_row_P);
-  *_col_P = move(sym_col_P);
-  *_val_P = move(sym_val_P);
+  *_row_P = std::move(sym_row_P);
+  *_col_P = std::move(sym_col_P);
+  *_val_P = std::move(sym_val_P);
 }
 
 // Compute squared Euclidean distance matrix
@@ -886,13 +886,13 @@ unique_ptr<TSNEState> make_tsne_impl(double* const X,
                                      0,
                                      .0,
                                      .0,
-                                     move(P),
-                                     move(row_P),
-                                     move(col_P),
-                                     move(val_P),
-                                     move(dY),
-                                     move(uY),
-                                     move(gains));
+                                     std::move(P),
+                                     std::move(row_P),
+                                     std::move(col_P),
+                                     std::move(val_P),
+                                     std::move(dY),
+                                     std::move(uY),
+                                     std::move(gains));
 }
 
 // Optimize t-SNE
