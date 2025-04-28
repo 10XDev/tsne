@@ -35,26 +35,64 @@
 #define TSNE_H
 
 #if defined _WIN32 || defined __CYGWIN__
+#ifdef BUILDING_TSNE_DLL
 #ifdef __GNUC__
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __attribute__((dllexport))
 #else
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __declspec(dllexport)
-#endif
+#endif  // __GNUC__
+#else
+#ifdef __GNUC__
+#define DLL_PUBLIC __attribute__ ((dllimport))
+#else
+#define DLL_PUBLIC __declspec(dllimport)
+#endif  // __GNUC__
+#endif  // BUILDING_TSNE_DLL
 #else
 #if __GNUC__ >= 4
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define DLL_PUBLIC __attribute__((visibility("default")))
 #else
 #define DLL_PUBLIC
-#endif
-#endif
+#endif  // __GNUC__
+#endif  // defined _WIN32 || defined __CYGWIN__
 
 extern "C" {
-
-void DLL_PUBLIC run(double* X, int N, int D, double* Y, int no_dims,
-                    double perplexity, double theta, int rand_seed,
-                    bool skip_random_init, double* init, bool use_init,
-                    int max_iter = 1000, int stop_lying_iter = 250,
+// stateless t-SNE
+DLL_PUBLIC void run(double* X,
+                    int N,
+                    int D,
+                    double* Y,
+                    int no_dims,
+                    double perplexity,
+                    double theta,
+                    int rand_seed,
+                    bool skip_random_init,
+                    const double* init,
+                    bool use_init,
+                    int max_iter = 1000,
+                    int stop_lying_iter = 250,
                     int mom_switch_iter = 250);
+// stateful t-SNE
+struct TSNE;
+DLL_PUBLIC struct TSNE* init_tsne(double* X,
+                                  int N,
+                                  int D,
+                                  double* Y,
+                                  int no_dims,
+                                  double perplexity,
+                                  double theta,
+                                  int rand_seed,
+                                  bool skip_random_init,
+                                  const double* init,
+                                  bool use_init,
+                                  int max_iter = 1000,
+                                  int stop_lying_iter = 250,
+                                  int mom_switch_iter = 250);
+DLL_PUBLIC bool step_tsne_by(struct TSNE* tsne, int step);
+DLL_PUBLIC void free_tsne(struct TSNE* tsne);
 }
 
-#endif
+#endif  // !defined(TSNE_H)

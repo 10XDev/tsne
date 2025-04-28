@@ -38,7 +38,9 @@
 #include <memory>
 #include <vector>
 
+#ifdef __GNUC__
 #pragma GCC visibility push(hidden)
+#endif
 
 template <int NDims = 2>
 class alignas(16) Cell {
@@ -48,10 +50,14 @@ class alignas(16) Cell {
  public:
   Cell() = default;
   Cell(const double* inp_corner, const double* inp_width);
+  Cell(const Cell&) = delete;
+  Cell(Cell&&) noexcept = default;
+  Cell& operator=(const Cell&) = delete;
+  Cell& operator=(Cell&&) noexcept = default;
   ~Cell() = default;
 
-  double getCorner(unsigned int d) const;
-  double getWidth(unsigned int d) const;
+  [[nodiscard]] double getCorner(unsigned int d) const;
+  [[nodiscard]] double getWidth(unsigned int d) const;
   void setCorner(unsigned int d, double val);
   void setWidth(unsigned int d, double val);
   bool containsPoint(const double point[]) const;
@@ -69,13 +75,16 @@ class SPTree {
     bool insert(const double* data, unsigned int new_index);
     void subdivide(const double* data);
     void print(const double* data) const;
-    void computeNonEdgeForces(const double* data, unsigned int point_index,
-                              double theta, double neg_f[],
+    void computeNonEdgeForces(const double* data,
+                              unsigned int point_index,
+                              double theta,
+                              double neg_f[],
                               double* sum_Q) const;
     std::vector<double> computeEdgeForces(const double* data,
                                           const unsigned int* row_P,
                                           const unsigned int* col_P,
-                                          const double* val_P, int N) const;
+                                          const double* val_P,
+                                          int N) const;
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc) const;
     void init(const double* inp_corner, const double* inp_width);
 
@@ -100,21 +109,24 @@ class SPTree {
 
   Node node;
 
-  SPTree(const SPTree<NDims>&) = delete;
-  SPTree& operator=(const SPTree<NDims>&) = delete;
-
  public:
   SPTree() = default;
-  SPTree(SPTree<NDims>&&) = default;
+  SPTree(SPTree<NDims>&&) noexcept = default;
+  SPTree(const SPTree<NDims>&) = delete;
+  SPTree& operator=(SPTree<NDims>&&) noexcept = default;
+  SPTree& operator=(const SPTree<NDims>&) = delete;
   SPTree(const double* inp_data, unsigned int N);
   ~SPTree() = default;
-  bool isCorrect() const;
+  [[nodiscard]] bool isCorrect() const;
   void getAllIndices(unsigned int* indices) const;
-  void computeNonEdgeForces(unsigned int point_index, double theta,
-                            double neg_f[], double* sum_Q) const;
+  void computeNonEdgeForces(unsigned int point_index,
+                            double theta,
+                            double neg_f[],
+                            double* sum_Q) const;
   std::vector<double> computeEdgeForces(const unsigned int* row_P,
                                         const unsigned int* col_P,
-                                        const double* val_P, int N) const;
+                                        const double* val_P,
+                                        int N) const;
   void print() const;
 
  private:
@@ -126,5 +138,8 @@ struct SPTree<0> {
   enum { no_children = 1 };
 };
 
+#ifdef __GNUC__
 #pragma GCC visibility pop
 #endif
+
+#endif  // !defined(SPTREE_H)
