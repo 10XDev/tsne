@@ -1,6 +1,6 @@
 # distutils: language = c++
 import numpy as np
-cimport numpy as np
+from cython.cimports import numpy as np
 cimport cython
 from libcpp cimport bool
 
