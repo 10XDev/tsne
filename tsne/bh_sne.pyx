@@ -4,6 +4,8 @@ from cython.cimports import numpy as np
 cimport cython
 from libcpp cimport bool
 
+np.import_array()
+
 cdef extern from "tsne.h":
     cdef cppclass TSNE:
         TSNE()
